@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">中国传媒大学校徽</title>
+  <desc id="desc">中国传媒大学登录页使用的圆形校徽样式标识</desc>
+  <defs>
+    <linearGradient id="cuc-gold" x1="22" y1="18" x2="138" y2="146" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff1a8"/>
+      <stop offset=".45" stop-color="#d6a83a"/>
+      <stop offset="1" stop-color="#8c661b"/>
+    </linearGradient>
+    <linearGradient id="cuc-red" x1="32" y1="24" x2="128" y2="136" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#b51d28"/>
+      <stop offset="1" stop-color="#74111a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="75" fill="url(#cuc-red)"/>
+  <circle cx="80" cy="80" r="70" fill="none" stroke="url(#cuc-gold)" stroke-width="5"/>
+  <circle cx="80" cy="80" r="50" fill="#fff8df" stroke="#d8ad42" stroke-width="3"/>
+  <path
+    d="M48 81c0-18 13-32 32-32 11 0 20 5 26 13l-14 8c-3-4-7-6-13-6-9 0-16 7-16 17s7 17 16 17c6 0 11-2 14-7l14 8c-6 9-15 14-27 14-19 0-32-14-32-32Z"
+    fill="#8b151f"
+  />
+  <path d="M80 36l6 12 13 2-10 9 3 13-12-7-12 7 3-13-10-9 13-2 6-12Z" fill="#d6a83a"/>
+  <path id="top-arc" d="M30 82a50 50 0 0 1 100 0" fill="none"/>
+  <path id="bottom-arc" d="M130 82a50 50 0 0 1-100 0" fill="none"/>
+  <text fill="#f7dda0" font-family="SimSun, 'Noto Serif SC', serif" font-size="14" font-weight="700" letter-spacing="2">
+    <textPath href="#top-arc" startOffset="50%" text-anchor="middle">中国传媒大学</textPath>
+  </text>
+  <text fill="#f7dda0" font-family="Georgia, serif" font-size="10" font-weight="700" letter-spacing="2.5">
+    <textPath href="#bottom-arc" startOffset="50%" text-anchor="middle">COMMUNICATION UNIVERSITY OF CHINA</textPath>
+  </text>
+</svg>
