@@ -14,3 +14,14 @@ next.user-config.*
 node_modules
 .next/
 .DS_Store
+
+# Logs
+*.log
+.next-dev.*.log
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Package manager - npm only
+pnpm-lock.yaml
+yarn.lock
