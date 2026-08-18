@@ -151,6 +151,13 @@ export const initialProfiles: StudentProfile[] = [
 ]
 
 // 学生个人基本资料（学生端使用）
+const defaultExperiences = `曾获全国大学生数学竞赛省级一等奖；
+曾作为技术成员参与中国国际大学生创新大赛项目，承担技术架构调研、AI交互方案梳理工作；独立开发学业信息可视化页面、多模态AI交互Demo，探索大模型在文化传播场景的落地应用。
+作为班级团委，协调展开班级日常团委活动。
+曾担任线下大型演唱会志愿者，负责现场通行管控、人员秩序维护。
+已经加入志愿者联合会，参与各类志愿活动组织协调工作。
+已经加入CUC桌游社团，一起来玩桌游吧。`
+
 export const initialBasicProfiles: StudentBasicProfile[] = [
   {
     userId: 'student1',
@@ -159,7 +166,7 @@ export const initialBasicProfiles: StudentBasicProfile[] = [
     grade: '大二',
     hometown: '江苏·南京',
     email: 'zhangming@example.com',
-    experiences: '',
+    experiences: defaultExperiences,
     strengths: '计算机视觉、Python、动手能力强',
   },
   {
@@ -169,7 +176,7 @@ export const initialBasicProfiles: StudentBasicProfile[] = [
     grade: '大二',
     hometown: '广东·深圳',
     email: 'lihua@example.com',
-    experiences: '',
+    experiences: defaultExperiences,
     strengths: '强化学习、C++、机器人方向',
   },
   {
@@ -179,7 +186,7 @@ export const initialBasicProfiles: StudentBasicProfile[] = [
     grade: '大二',
     hometown: '四川·成都',
     email: 'wangfang@example.com',
-    experiences: '',
+    experiences: defaultExperiences,
     strengths: '数据分析、SQL、可视化表达',
   },
 ]

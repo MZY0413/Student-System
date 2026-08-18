@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import type { Gender, HelpPost, StudentBasicProfile } from '@/lib/types'
+import type { Gender, StudentBasicProfile } from '@/lib/types'
 import {
   getBasicProfileByUserId,
   getBasicProfiles,
-  getUserHelpActivity,
   getUsers,
   upsertBasicProfile,
 } from '@/lib/store'
@@ -18,8 +17,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { HelpPostCard } from '@/components/help/help-post-card'
 import {
   Select,
   SelectContent,
@@ -84,7 +81,6 @@ export default function ProfilePage() {
 
   const canEdit = useMemo(() => Boolean(user && user.role === 'student' && user.id === userId), [user, userId])
   const isSelf = canEdit
-  const helpActivity = useMemo(() => userId ? getUserHelpActivity(userId) : { posts: [], collectedPosts: [], answeredPosts: [] }, [userId, version])
   const users = useMemo(() => getUsers(), [version])
   const basicProfiles = useMemo(() => getBasicProfiles(), [version])
   const profileMap = useMemo(() => new Map(basicProfiles.map(item => [item.userId, item])), [basicProfiles])
@@ -110,27 +106,59 @@ export default function ProfilePage() {
 
       {/* 个人卡片 */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+        {/* 紧凑头部：姓名 + 基本 meta */}
+        <CardHeader className="pb-0">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                 {userName?.slice(0, 1)}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <CardTitle className="text-xl">{userName}</CardTitle>
-              <CardDescription>
+            <div className="min-w-0">
+              <CardTitle className="text-base">{userName}</CardTitle>
+              <CardDescription className="truncate text-xs">
                 {[profile.gender, profile.grade || '年级未填', profile.hometown || '家乡未填'].filter(Boolean).join(' · ')}
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="name">姓名</Label>
-            <Input id="name" value={profile.name} disabled />
-          </div>
 
+        {/* 代表性经历 —— 主体 */}
+        <CardContent>
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="flex items-baseline gap-2">
+              <Label htmlFor="experiences" className="text-base">我的代表性经历</Label>
+              <span className="text-xs text-muted-foreground">让大家认识更全面的自己！</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setHintOpen(v => !v)}
+              className="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              不知道怎么写？
+            </button>
+          </div>
+          {hintOpen && (
+            <div className="mt-2 rounded-lg border border-border bg-muted/40 p-3">
+              <p className="text-xs font-medium text-foreground">可以从这些方面入手：</p>
+              <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-xs text-muted-foreground">
+                {experienceHints.map(hint => <li key={hint}>{hint}</li>)}
+              </ul>
+            </div>
+          )}
+          <Textarea
+            id="experiences"
+            rows={9}
+            className="mt-2 min-h-52 text-base leading-relaxed"
+            placeholder="例如：全国大学生数学建模竞赛省一等奖、校一等奖学金、参与「智能图像分类系统」项目开发、担任机器人社团负责人…"
+            value={profile.experiences}
+            onChange={(e) => setProfile(p => (p ? { ...p, experiences: e.target.value } : p))}
+            disabled={!canEdit}
+          />
+        </CardContent>
+
+        {/* 基本资料（紧凑） */}
+        <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label>性别</Label>
             <Select
@@ -153,7 +181,7 @@ export default function ProfilePage() {
             <Label htmlFor="grade">年级</Label>
             <Input
               id="grade"
-              placeholder="例如：大一 / 大二 / 2024级"
+              placeholder="例如：大二"
               value={profile.grade}
               onChange={(e) => setProfile(p => (p ? { ...p, grade: e.target.value } : p))}
               disabled={!canEdit}
@@ -171,7 +199,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2 sm:col-span-3">
             <Label htmlFor="email">邮箱</Label>
             <Input
               id="email"
@@ -183,43 +211,11 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="space-y-2 md:col-span-2">
-            <div className="flex items-baseline justify-between gap-2">
-              <div className="flex items-baseline gap-2">
-                <Label htmlFor="experiences">我的代表性经历</Label>
-                <span className="text-xs text-muted-foreground">让大家认识更全面的自己！</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setHintOpen(v => !v)}
-                className="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                不知道怎么写？
-              </button>
-            </div>
-            {hintOpen && (
-              <div className="rounded-lg border border-border bg-muted/40 p-3">
-                <p className="text-xs font-medium text-foreground">可以从这些方面入手：</p>
-                <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-xs text-muted-foreground">
-                  {experienceHints.map(hint => <li key={hint}>{hint}</li>)}
-                </ul>
-              </div>
-            )}
-            <Textarea
-              id="experiences"
-              rows={4}
-              placeholder="例如：全国大学生数学建模竞赛省一等奖、校一等奖学金、参与「智能图像分类系统」项目开发、担任机器人社团负责人…"
-              value={profile.experiences}
-              onChange={(e) => setProfile(p => (p ? { ...p, experiences: e.target.value } : p))}
-              disabled={!canEdit}
-            />
-          </div>
-
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2 sm:col-span-3">
             <Label htmlFor="strengths">兴趣特长</Label>
             <Textarea
               id="strengths"
-              rows={3}
+              rows={2}
               placeholder="例如：编程 / 演讲 / 数据分析 / 篮球 ..."
               value={profile.strengths}
               onChange={(e) => setProfile(p => (p ? { ...p, strengths: e.target.value } : p))}
@@ -228,7 +224,7 @@ export default function ProfilePage() {
           </div>
 
           {canEdit && (
-            <div className="md:col-span-2 flex justify-end">
+            <div className="sm:col-span-3 flex justify-end">
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving ? '保存中...' : '保存资料'}
               </Button>
@@ -274,52 +270,6 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
-
-      {/* 我的互助（仅自己可见） */}
-      {isSelf && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">我的互助</CardTitle>
-            <CardDescription>你发布、收藏与回答的学业互助内容</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="published" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="published">我发布的</TabsTrigger>
-                <TabsTrigger value="collected">我收藏的</TabsTrigger>
-                <TabsTrigger value="answered">我的回答</TabsTrigger>
-              </TabsList>
-              <TabsContent value="published">
-                <HelpPostList posts={helpActivity.posts} users={users} />
-              </TabsContent>
-              <TabsContent value="collected">
-                <HelpPostList posts={helpActivity.collectedPosts} users={users} />
-              </TabsContent>
-              <TabsContent value="answered">
-                <HelpPostList posts={helpActivity.answeredPosts} users={users} />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
-}
-
-function HelpPostList({ posts, users }: { posts: HelpPost[]; users: ReturnType<typeof getUsers> }) {
-  if (posts.length === 0) {
-    return (
-      <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
-        暂无记录
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      {posts.map(post => (
-        <HelpPostCard key={post.id} post={post} author={users.find(item => item.id === post.userId)} />
-      ))}
     </div>
   )
 }
