@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -49,6 +49,7 @@ import {
 export default function TeacherGpaPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [students, setStudents] = useState<User[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState('')
@@ -70,14 +71,15 @@ export default function TeacherGpaPage() {
     if (user?.role !== 'teacher') return
     const list = getUsers().filter(u => u.role === 'student')
     setStudents(list)
-    if (list.length > 0) setSelectedStudentId(list[0].id)
+    const fromParam = searchParams.get('studentId')
+    setSelectedStudentId(fromParam && list.some(s => s.id === fromParam) ? fromParam : (list[0]?.id ?? ''))
 
     const all = getAllSemesters()
     setSemesters(all)
     const currentKey = getCurrentSemesterKey()
     const defaultSemester = all.some(s => s.key === currentKey) ? currentKey : (all[all.length - 1]?.key ?? '')
     setRankSemester(defaultSemester)
-  }, [user])
+  }, [user, searchParams])
 
   // 加载选中学生的成绩数据
   useEffect(() => {
