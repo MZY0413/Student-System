@@ -15,18 +15,24 @@ export default function TeacherDashboard() {
   const [studentGPAs, setStudentGPAs] = useState<Record<string, number>>({})
 
   useEffect(() => {
-    const users = getUsers()
-    const studentUsers = users.filter(u => u.role === 'student')
-    setStudents(studentUsers)
+    let cancelled = false
+    ;(async () => {
+      const users = await getUsers()
+      const studentUsers = users.filter(u => u.role === 'student')
+      if (cancelled) return
+      setStudents(studentUsers)
 
-    setClassStats(getClassStats())
+      const gpas: Record<string, number> = {}
+      for (const student of studentUsers) {
+        const { cumulativeGPA } = await calculateGPA(student.id, 'four')
+        gpas[student.id] = cumulativeGPA
+      }
+      if (!cancelled) return
+      setStudentGPAs(gpas)
 
-    const gpas: Record<string, number> = {}
-    studentUsers.forEach(student => {
-      const { cumulativeGPA } = calculateGPA(student.id, 'four')
-      gpas[student.id] = cumulativeGPA
-    })
-    setStudentGPAs(gpas)
+      setClassStats(await getClassStats())
+    })()
+    return () => { cancelled = true }
   }, [])
 
   return (

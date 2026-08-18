@@ -69,32 +69,51 @@ export default function TeacherGpaPage() {
   // 初始化学生列表与学期
   useEffect(() => {
     if (user?.role !== 'teacher') return
-    const list = getUsers().filter(u => u.role === 'student')
-    setStudents(list)
-    const fromParam = searchParams.get('studentId')
-    setSelectedStudentId(fromParam && list.some(s => s.id === fromParam) ? fromParam : (list[0]?.id ?? ''))
-
-    const all = getAllSemesters()
-    setSemesters(all)
-    const currentKey = getCurrentSemesterKey()
-    const defaultSemester = all.some(s => s.key === currentKey) ? currentKey : (all[all.length - 1]?.key ?? '')
-    setRankSemester(defaultSemester)
+    let cancelled = false
+    ;(async () => {
+      const users = await getUsers()
+      const list = users.filter(u => u.role === 'student')
+      const all = await getAllSemesters()
+      if (cancelled) return
+      setStudents(list)
+      const fromParam = searchParams.get('studentId')
+      setSelectedStudentId(fromParam && list.some(s => s.id === fromParam) ? fromParam : (list[0]?.id ?? ''))
+      setSemesters(all)
+      const currentKey = getCurrentSemesterKey()
+      setRankSemester(all.some(s => s.key === currentKey) ? currentKey : (all[all.length - 1]?.key ?? ''))
+    })()
+    return () => { cancelled = true }
   }, [user, searchParams])
 
   // 加载选中学生的成绩数据
   useEffect(() => {
     if (user?.role !== 'teacher' || !selectedStudentId) return
-    setRecords(getCourseGradeRecords(selectedStudentId))
-    setGpa(calculateGPA(selectedStudentId, 'four'))
-    setCredit(getCreditAnalysis(selectedStudentId))
-    setSemesterGPAs(getStudentSemesterGPAs(selectedStudentId))
+    let cancelled = false
+    ;(async () => {
+      const [records, gpa, credit, semesterGPAs] = await Promise.all([
+        getCourseGradeRecords(selectedStudentId),
+        calculateGPA(selectedStudentId, 'four'),
+        getCreditAnalysis(selectedStudentId),
+        getStudentSemesterGPAs(selectedStudentId),
+      ])
+      if (cancelled) return
+      setRecords(records)
+      setGpa(gpa)
+      setCredit(credit)
+      setSemesterGPAs(semesterGPAs)
+    })()
+    return () => { cancelled = true }
   }, [selectedStudentId, user])
 
   // 排名学期切换
   useEffect(() => {
-    if (user?.role === 'teacher' && rankSemester) {
-      setRanking(getSemesterRanking(rankSemester))
-    }
+    if (user?.role !== 'teacher' || !rankSemester) return
+    let cancelled = false
+    ;(async () => {
+      const ranking = await getSemesterRanking(rankSemester)
+      if (!cancelled) setRanking(ranking)
+    })()
+    return () => { cancelled = true }
   }, [rankSemester, user])
 
   // 已通过课程 / 有成绩课程 / 按学期分组

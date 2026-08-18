@@ -19,17 +19,21 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
   const [experiences, setExperiences] = useState('')
 
   useEffect(() => {
-    const foundProfile = getProfiles().find(p => p.userId === studentId)
-    setProfile(foundProfile || null)
-
-    const foundUser = getUsers().find(u => u.id === studentId)
-    setUser(foundUser || null)
-
-    const gpaData = calculateGPA(studentId, 'four')
-    setGpa(gpaData.cumulativeGPA)
-
-    const basic = getBasicProfileByUserId(studentId)
-    setExperiences(basic?.experiences || '')
+    let cancelled = false
+    ;(async () => {
+      const profiles = await getProfiles()
+      const foundProfile = profiles.find(p => p.userId === studentId)
+      const users = await getUsers()
+      const foundUser = users.find(u => u.id === studentId)
+      const gpaData = await calculateGPA(studentId, 'four')
+      const basic = await getBasicProfileByUserId(studentId)
+      if (cancelled) return
+      setProfile(foundProfile || null)
+      setUser(foundUser || null)
+      setGpa(gpaData.cumulativeGPA)
+      setExperiences(basic?.experiences || '')
+    })()
+    return () => { cancelled = true }
   }, [studentId])
 
   if (!profile || !user) {

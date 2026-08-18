@@ -35,6 +35,7 @@ async function main() {
   await upsert('users', initialUsers.map(u => ({
     id: u.id,
     username: u.username,
+    password: u.password,
     role: u.role,
     name: u.name,
     avatar: u.avatar ?? null,

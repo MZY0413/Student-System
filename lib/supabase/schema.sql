@@ -7,6 +7,7 @@
 create table if not exists public.users (
   id text primary key,
   username text unique not null,
+  password text,
   role text not null check (role in ('student', 'teacher')),
   name text not null,
   avatar text,

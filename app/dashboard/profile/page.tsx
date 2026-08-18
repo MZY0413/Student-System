@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import type { Gender, StudentBasicProfile } from '@/lib/types'
+import type { Gender, StudentBasicProfile, User } from '@/lib/types'
 import {
   getBasicProfileByUserId,
   getBasicProfiles,
@@ -57,10 +57,24 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<StudentBasicProfile | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [hintOpen, setHintOpen] = useState(false)
-  const [version, setVersion] = useState(0)
+  const [allUsers, setAllUsers] = useState<User[]>([])
+  const [basicProfiles, setBasicProfiles] = useState<StudentBasicProfile[]>([])
 
   const targetUserId = searchParams.get('userId') || user?.id
-  const targetUser = useMemo(() => getUsers().find(item => item.id === targetUserId) ?? user, [targetUserId, user])
+
+  // 加载全部用户与基本资料（用于 targetUser 与同学卡片）
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const [users, profiles] = await Promise.all([getUsers(), getBasicProfiles()])
+      if (cancelled) return
+      setAllUsers(users)
+      setBasicProfiles(profiles)
+    })()
+    return () => { cancelled = true }
+  }, [targetUserId])
+
+  const targetUser = allUsers.find(item => item.id === targetUserId) ?? user
   const userId = targetUser?.id
   const userName = targetUser?.name
 
@@ -70,28 +84,27 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!userId || !userName) return
-    const stored = getBasicProfileByUserId(userId)
-    // 合并默认值，兼容旧数据（旧字段 motto → experiences）
-    setProfile(stored ? { ...buildDefaultProfile(userId, userName), ...stored } : buildDefaultProfile(userId, userName))
+    let cancelled = false
+    ;(async () => {
+      const stored = await getBasicProfileByUserId(userId)
+      if (cancelled) return
+      // 合并默认值，兼容旧数据（旧字段 motto → experiences）
+      setProfile(stored ? { ...buildDefaultProfile(userId, userName), ...stored } : buildDefaultProfile(userId, userName))
+    })()
+    return () => { cancelled = true }
   }, [userId, userName])
-
-  useEffect(() => {
-    Promise.resolve().then(() => setVersion(value => value + 1))
-  }, [userId])
 
   const canEdit = useMemo(() => Boolean(user && user.role === 'student' && user.id === userId), [user, userId])
   const isSelf = canEdit
-  const users = useMemo(() => getUsers(), [version])
-  const basicProfiles = useMemo(() => getBasicProfiles(), [version])
   const profileMap = useMemo(() => new Map(basicProfiles.map(item => [item.userId, item])), [basicProfiles])
-  const classmates = useMemo(() => users.filter(item => item.role === 'student' && item.id !== userId), [users, userId])
+  const classmates = useMemo(() => allUsers.filter(item => item.role === 'student' && item.id !== userId), [allUsers, userId])
 
   if (isLoading || !user || !profile) return null
 
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      upsertBasicProfile(profile)
+      await upsertBasicProfile(profile)
     } finally {
       setIsSaving(false)
     }

@@ -60,21 +60,35 @@ export default function GradesPage() {
 
   useEffect(() => {
     if (user?.role !== 'student') return
-    setRecords(getCourseGradeRecords(user.id))
-    setGpa(calculateGPA(user.id, 'four'))
-    setCredit(getCreditAnalysis(user.id))
-    setSemesterGPAs(getStudentSemesterGPAs(user.id))
-
-    const all = getAllSemesters()
-    setSemesters(all)
-    const currentKey = getCurrentSemesterKey()
-    setSelectedSemester(all.some(s => s.key === currentKey) ? currentKey : (all[all.length - 1]?.key ?? ''))
+    let cancelled = false
+    ;(async () => {
+      const [records, gpa, credit, semesterGPAs, all] = await Promise.all([
+        getCourseGradeRecords(user.id),
+        calculateGPA(user.id, 'four'),
+        getCreditAnalysis(user.id),
+        getStudentSemesterGPAs(user.id),
+        getAllSemesters(),
+      ])
+      if (cancelled) return
+      setRecords(records)
+      setGpa(gpa)
+      setCredit(credit)
+      setSemesterGPAs(semesterGPAs)
+      setSemesters(all)
+      const currentKey = getCurrentSemesterKey()
+      setSelectedSemester(all.some(s => s.key === currentKey) ? currentKey : (all[all.length - 1]?.key ?? ''))
+    })()
+    return () => { cancelled = true }
   }, [user])
 
   useEffect(() => {
-    if (user?.role === 'student' && selectedSemester) {
-      setLeaderboard(getRankingLeaderboard(user.id, selectedSemester))
-    }
+    if (user?.role !== 'student' || !selectedSemester) return
+    let cancelled = false
+    ;(async () => {
+      const leaderboard = await getRankingLeaderboard(user.id, selectedSemester)
+      if (!cancelled) setLeaderboard(leaderboard)
+    })()
+    return () => { cancelled = true }
   }, [selectedSemester, user])
 
   // 已通过课程（计入课程数量 / 已修学期 / 已修学分）

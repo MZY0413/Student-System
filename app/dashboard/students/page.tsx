@@ -16,16 +16,21 @@ export default function StudentsPage() {
   const [studentGPAs, setStudentGPAs] = useState<Record<string, number>>({})
 
   useEffect(() => {
-    const users = getUsers()
-    const studentUsers = users.filter(u => u.role === 'student')
-    setStudents(studentUsers)
+    let cancelled = false
+    ;(async () => {
+      const users = await getUsers()
+      const studentUsers = users.filter(u => u.role === 'student')
+      if (cancelled) return
+      setStudents(studentUsers)
 
-    const gpas: Record<string, number> = {}
-    studentUsers.forEach(student => {
-      const { cumulativeGPA } = calculateGPA(student.id, 'four')
-      gpas[student.id] = cumulativeGPA
-    })
-    setStudentGPAs(gpas)
+      const gpas: Record<string, number> = {}
+      for (const student of studentUsers) {
+        const { cumulativeGPA } = await calculateGPA(student.id, 'four')
+        gpas[student.id] = cumulativeGPA
+      }
+      if (!cancelled) setStudentGPAs(gpas)
+    })()
+    return () => { cancelled = true }
   }, [])
 
   const filteredStudents = students.filter(student =>
