@@ -182,6 +182,24 @@ export interface AcademicRankings {
   scopeGPA: number
 }
 
+export interface RankingLeaderboardEntry {
+  studentId: string
+  studentName: string
+  gpa: number
+  date: string
+}
+
+export interface RankingLeaderboard {
+  entries: RankingLeaderboardEntry[]
+  myRank: number
+  myGPA: number
+  total: number
+  highestGPA: number
+  lowestGPA: number
+  averageGPA: number
+  percentAbove: number
+}
+
 export interface CreditAnalysis {
   completedCredits: number
   remainingGraduationCredits: number

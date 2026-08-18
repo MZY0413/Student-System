@@ -1,18 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -21,253 +12,354 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import {
-  AlertTriangle,
-  Award,
+  ArrowDown,
+  ArrowUp,
   BarChart3,
   BookOpen,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
+  CalendarDays,
   GraduationCap,
-  ListFilter,
+  LineChart,
+  ListChecks,
+  Search,
+  TrendingUp,
+  Trophy,
+  Users,
 } from 'lucide-react'
 import {
   calculateGPA,
-  getAcademicRankings,
   getCourseGradeRecords,
   getCreditAnalysis,
+  getRankingLeaderboard,
   scoreToGPA,
 } from '@/lib/store'
 import type {
-  AcademicRankings,
   CourseGradeRecord,
   CreditAnalysis,
-  GPAScale,
   GPASummary,
-  RankingScope,
+  RankingLeaderboard,
 } from '@/lib/types'
-
-const PAGE_SIZE = 6
-
-const scaleLabel: Record<GPAScale, string> = {
-  four: '四分制',
-  five: '五分制',
-  hundred: '百分制',
-}
-
-const rankingScopeLabel: Record<RankingScope, string> = {
-  term: '本学期 GPA',
-  year: '学年 GPA',
-  cumulative: '累计 GPA',
-}
-
-const statusStyle = {
-  通过: 'bg-success/12 text-success border-success/30',
-  不及格: 'bg-destructive/12 text-destructive border-destructive/30',
-  缺考: 'bg-destructive/12 text-destructive border-destructive/30',
-  缓考: 'bg-warning/12 text-warning-foreground border-warning/30',
-}
-
-function formatScore(value?: number) {
-  return value === undefined ? '-' : value
-}
 
 function formatGPA(value?: number) {
   return value && value > 0 ? value.toFixed(2) : '-'
 }
 
-function getArchiveKey(record: CourseGradeRecord) {
-  return `${record.academicYear}-${record.semester}`
+// 某一组课程的加权平均绩点（四分制）
+function termGPA(records: CourseGradeRecord[]): number {
+  const eligible = records.filter(record => record.totalScore !== undefined && record.examStatus !== '缓考')
+  const totalCredits = eligible.reduce((sum, record) => sum + record.credit, 0)
+  if (totalCredits === 0) return 0
+  const weighted = eligible.reduce((sum, record) => (
+    sum + scoreToGPA(record.totalScore, 'four') * record.credit
+  ), 0)
+  return Math.round((weighted / totalCredits) * 100) / 100
 }
 
-function GradeTable({
-  records,
-  scale,
-  showRemediation = false,
-}: {
-  records: CourseGradeRecord[]
-  scale: GPAScale
-  showRemediation?: boolean
-}) {
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>课程名称</TableHead>
-            <TableHead className="text-center">课程属性</TableHead>
-            <TableHead className="text-center">学分</TableHead>
-            <TableHead className="text-center">平时成绩</TableHead>
-            <TableHead className="text-center">期末成绩</TableHead>
-            <TableHead className="text-center">综合总分</TableHead>
-            <TableHead className="text-center">课程绩点</TableHead>
-            <TableHead className="text-center">考核状态</TableHead>
-            {showRemediation && <TableHead className="text-center">补考 / 重修状态</TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {records.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={showRemediation ? 9 : 8} className="h-24 text-center text-muted-foreground">
-                暂无成绩记录
-              </TableCell>
-            </TableRow>
-          ) : (
-            records.map(record => {
-              const isWarning = record.examStatus !== '通过'
-              return (
-                <TableRow key={`${record.studentId}-${record.courseId}`} className={isWarning ? 'bg-destructive/5' : undefined}>
-                  <TableCell className="font-medium">{record.courseName}</TableCell>
-                  <TableCell className="text-center">{record.courseAttribute}</TableCell>
-                  <TableCell className="text-center">{record.credit}</TableCell>
-                  <TableCell className="text-center">{formatScore(record.regularScore)}</TableCell>
-                  <TableCell className="text-center">{formatScore(record.finalScore)}</TableCell>
-                  <TableCell className="text-center font-semibold">{formatScore(record.totalScore)}</TableCell>
-                  <TableCell className="text-center">{formatGPA(scoreToGPA(record.totalScore, scale))}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="outline" className={statusStyle[record.examStatus]}>
-                      {record.examStatus}
-                    </Badge>
-                  </TableCell>
-                  {showRemediation && (
-                    <TableCell className="text-center font-medium text-destructive">
-                      {record.remediationStatus}
-                    </TableCell>
-                  )}
-                </TableRow>
-              )
-            })
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  )
+function shortTermLabel(academicYear: string, semester: string) {
+  const year = academicYear.replace('学年', '')
+  const term = semester === '第一学期' ? '上' : '下'
+  return `${year} ${term}`
 }
 
-function StatCard({
-  title,
-  value,
+function rankEvaluation(percentAbove: number): string {
+  if (percentAbove >= 90) return '名列前茅，继续保持！'
+  if (percentAbove >= 60) return '表现优秀，稳中有进。'
+  if (percentAbove >= 30) return '处于中上游，仍有提升空间。'
+  return '仍需努力，关注薄弱科目。'
+}
+
+// ── 顶部统计卡片（图标在上方） ─────────────────────────────────
+function MetricCard({
   icon: Icon,
+  label,
+  value,
 }: {
-  title: string
-  value: string
   icon: typeof GraduationCap
+  label: string
+  value: string
 }) {
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 pt-6">
-        <div className="rounded-md bg-primary/10 p-3 text-primary">
+      <CardContent className="flex flex-col gap-2 pt-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="mt-1 text-3xl font-bold text-foreground">{value}</p>
         </div>
       </CardContent>
     </Card>
   )
 }
 
-function RankingCard({
-  title,
-  rank,
-  total,
+// ── 大容器内横向三栏指标 ──────────────────────────────────────
+function InlineMetric({
+  icon: Icon,
+  value,
+  label,
 }: {
-  title: string
-  rank: number
-  total: number
+  icon: typeof GraduationCap
+  value: string | number
+  label: string
 }) {
   return (
-    <div className="rounded-md border border-border p-4">
-      <p className="text-sm text-muted-foreground">{title}</p>
-      <div className="mt-2 flex items-end gap-2">
-        <span className="text-3xl font-bold text-primary">{rank || '-'}</span>
-        <span className="pb-1 text-sm text-muted-foreground">/ {total || '-'}</span>
+    <div className="flex flex-col items-center gap-1 text-center">
+      <Icon className="h-5 w-5 text-primary" />
+      <span className="text-2xl font-bold text-foreground">{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </div>
+  )
+}
+
+// ── 排名统计小卡片 ────────────────────────────────────────────
+function RankStatCard({
+  icon: Icon,
+  value,
+  label,
+  valueClassName,
+}: {
+  icon: typeof GraduationCap
+  value: string
+  label: string
+  valueClassName?: string
+}) {
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-center gap-1 pt-6 text-center">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <span className={cn('text-xl font-bold text-foreground', valueClassName)}>{value}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── 名次标识 ──────────────────────────────────────────────────
+function RankBadge({ rank }: { rank: number }) {
+  const style = rank === 1
+    ? 'bg-amber-400 text-amber-950'
+    : rank === 2
+      ? 'bg-slate-300 text-slate-800'
+      : rank === 3
+        ? 'bg-amber-600 text-amber-50'
+        : 'bg-secondary text-muted-foreground'
+  return (
+    <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold', style)}>
+      {rank}
+    </div>
+  )
+}
+
+// ── 查询排名模块 ──────────────────────────────────────────────
+function RankingModule({
+  leaderboard,
+  studentId,
+}: {
+  leaderboard: RankingLeaderboard
+  studentId: string
+}) {
+  const [sortMode, setSortMode] = useState<'rank' | 'gpa'>('rank')
+
+  // 榜单以绩点为唯一维度，【排名】与【绩点】的排序结果一致；保留切换以满足交互
+  const entries = useMemo(() => (
+    [...leaderboard.entries].sort((a, b) => b.gpa - a.gpa || a.studentName.localeCompare(b.studentName))
+  ), [leaderboard])
+
+  return (
+    <div className="space-y-4">
+      {/* 我的排名 */}
+      <Card className="border-blue-500/25 bg-blue-500/10">
+        <CardContent className="space-y-5 pt-6">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-blue-400" />
+            <span className="font-semibold">我的排名</span>
+          </div>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <span className="text-4xl font-bold text-foreground">{leaderboard.myRank || '-'}</span>
+              <span className="ml-1 text-sm text-muted-foreground">/ {leaderboard.total || '-'}</span>
+            </div>
+            <div className="rounded-lg border border-border bg-card/60 px-4 py-2 text-right">
+              <p className="text-xs text-muted-foreground">当学期平均绩点</p>
+              <p className="text-2xl font-bold text-foreground">{formatGPA(leaderboard.myGPA)}</p>
+            </div>
+          </div>
+          <div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-blue-500/20">
+              <div className="h-full rounded-full bg-blue-400" style={{ width: `${leaderboard.percentAbove}%` }} />
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              超过本专业 <span className="font-semibold text-blue-400">{leaderboard.percentAbove}%</span> 的同学
+              <span className="ml-1">· {rankEvaluation(leaderboard.percentAbove)}</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 四个统计卡片 */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <RankStatCard icon={Users} value={`${leaderboard.total}`} label="参与" />
+        <RankStatCard icon={ArrowUp} value={formatGPA(leaderboard.highestGPA)} label="最高" valueClassName="text-success" />
+        <RankStatCard icon={BarChart3} value={formatGPA(leaderboard.averageGPA)} label="平均" valueClassName="text-warning" />
+        <RankStatCard icon={ArrowDown} value={formatGPA(leaderboard.lowestGPA)} label="最低" valueClassName="text-destructive" />
+      </div>
+
+      {/* 榜单标题栏 */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold">全榜</span>
+        <div className="flex gap-1 rounded-lg bg-secondary p-1">
+          <button
+            type="button"
+            onClick={() => setSortMode('rank')}
+            className={cn(
+              'rounded-md px-3 py-1 text-sm transition-colors',
+              sortMode === 'rank' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            排名
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortMode('gpa')}
+            className={cn(
+              'rounded-md px-3 py-1 text-sm transition-colors',
+              sortMode === 'gpa' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            绩点
+          </button>
+        </div>
+      </div>
+
+      {/* 绩点排行榜列表 */}
+      <div className="space-y-2">
+        {entries.map((entry, index) => {
+          const isMe = entry.studentId === studentId
+          const rank = index + 1
+          return (
+            <div
+              key={entry.studentId}
+              className={cn(
+                'flex items-center gap-3 rounded-xl border p-3',
+                isMe ? 'border-blue-400/60 bg-blue-500/10' : 'border-border bg-card/40'
+              )}
+            >
+              <RankBadge rank={rank} />
+              <div className="flex flex-1 items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">{entry.studentName}</span>
+                  {isMe && (
+                    <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-400">
+                      我
+                    </span>
+                  )}
+                </div>
+                <span className="text-lg font-bold text-foreground">{formatGPA(entry.gpa)}</span>
+              </div>
+              <span className="shrink-0 text-xs text-muted-foreground">{entry.date}</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-function CreditProgress({
-  label,
-  value,
-  target,
-  met,
-}: {
-  label: string
-  value: number
-  target: number
-  met?: boolean
-}) {
-  const percent = target > 0 ? Math.min(Math.round((value / target) * 100), 100) : 0
-
+// ── 成绩表格（学分 / 绩点 / 分数） ─────────────────────────────
+function GradeTable({ records }: { records: CourseGradeRecord[] }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">{label}</span>
-          {met !== undefined && (
-            <Badge variant="outline" className={met ? 'border-success/30 text-success' : 'border-warning/30 text-warning-foreground'}>
-              {met ? '已达标' : '未达标'}
-            </Badge>
-          )}
-        </div>
-        <span className="text-sm text-muted-foreground">
-          {value}/{target} 学分
-        </span>
-      </div>
-      <Progress value={percent} className="h-2" />
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>课程名称</TableHead>
+          <TableHead className="text-center">学分</TableHead>
+          <TableHead className="text-center">绩点</TableHead>
+          <TableHead className="text-center">分数</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {records.map(record => (
+          <TableRow key={`${record.studentId}-${record.courseId}`}>
+            <TableCell>
+              <div className="font-medium">{record.courseName}</div>
+              <div className="mt-0.5 text-xs text-blue-400">{record.creditRequirement}</div>
+            </TableCell>
+            <TableCell className="text-center">{record.credit}</TableCell>
+            <TableCell className="text-center">{formatGPA(scoreToGPA(record.totalScore, 'four'))}</TableCell>
+            <TableCell className="text-center font-semibold">{record.totalScore ?? '-'}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
 export default function GradesPage() {
   const { user } = useAuth()
-  const [selectedStudentId, setSelectedStudentId] = useState('')
   const [records, setRecords] = useState<CourseGradeRecord[]>([])
-  const [gpaScale, setGpaScale] = useState<GPAScale>('four')
-  const [gpaData, setGpaData] = useState<GPASummary | null>(null)
-  const [rankScope, setRankScope] = useState<RankingScope>('cumulative')
-  const [rankings, setRankings] = useState<AcademicRankings | null>(null)
-  const [creditAnalysis, setCreditAnalysis] = useState<CreditAnalysis | null>(null)
-  const [archiveFilter, setArchiveFilter] = useState('all')
-  const [archivePage, setArchivePage] = useState(1)
-
-  const loadStudentData = useCallback((studentId: string, scale: GPAScale, scope: RankingScope) => {
-    setRecords(getCourseGradeRecords(studentId))
-    setGpaData(calculateGPA(studentId, scale))
-    setRankings(getAcademicRankings(studentId, scope, scale))
-    setCreditAnalysis(getCreditAnalysis(studentId))
-  }, [])
+  const [gpa, setGpa] = useState<GPASummary | null>(null)
+  const [credit, setCredit] = useState<CreditAnalysis | null>(null)
+  const [leaderboard, setLeaderboard] = useState<RankingLeaderboard | null>(null)
+  const [rankingVisible, setRankingVisible] = useState(false)
+  const rankingRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setSelectedStudentId(user?.role === 'student' ? user.id : '')
+    if (user?.role !== 'student') return
+    setRecords(getCourseGradeRecords(user.id))
+    setGpa(calculateGPA(user.id, 'four'))
+    setCredit(getCreditAnalysis(user.id))
+    setLeaderboard(getRankingLeaderboard(user.id, 'four'))
   }, [user])
 
-  useEffect(() => {
-    if (selectedStudentId) {
-      loadStudentData(selectedStudentId, gpaScale, rankScope)
-      setArchivePage(1)
+  // 已通过课程（计入课程数量 / 已修学期 / 已修学分）
+  const passedRecords = useMemo(
+    () => records.filter(record => record.examStatus === '通过' && record.totalScore !== undefined && record.totalScore >= 60),
+    [records]
+  )
+  // 有成绩记录的课程（用于最高分 / 最低分）
+  const scoredRecords = useMemo(
+    () => records.filter(record => record.status === 'completed' && record.totalScore !== undefined),
+    [records]
+  )
+  // 按学期分组的全部成绩
+  const semesterGroups = useMemo(() => {
+    const groups = new Map<string, { key: string; academicYear: string; semester: string; records: CourseGradeRecord[] }>()
+    records
+      .filter(record => record.status === 'completed')
+      .forEach(record => {
+        const key = `${record.academicYear}-${record.semester}`
+        if (!groups.has(key)) {
+          groups.set(key, { key, academicYear: record.academicYear, semester: record.semester, records: [] })
+        }
+        groups.get(key)!.records.push(record)
+      })
+    return Array.from(groups.values()).sort((a, b) => a.key.localeCompare(b.key))
+  }, [records])
+
+  const countedCourses = passedRecords.length
+  const completedSemesters = new Set(passedRecords.map(record => `${record.academicYear}-${record.semester}`)).size
+  const completionPercent = credit && credit.graduationRequiredCredits > 0
+    ? Math.min(Math.round((credit.completedCredits / credit.graduationRequiredCredits) * 100), 100)
+    : 0
+
+  const highest = scoredRecords.reduce<CourseGradeRecord | null>(
+    (max, record) => (!max || (record.totalScore ?? 0) > (max.totalScore ?? 0) ? record : max),
+    null
+  )
+  const lowest = scoredRecords.reduce<CourseGradeRecord | null>(
+    (min, record) => (!min || (record.totalScore ?? 0) < (min.totalScore ?? 0) ? record : min),
+    null
+  )
+
+  const handleQueryRanking = () => {
+    const next = !rankingVisible
+    setRankingVisible(next)
+    if (next) {
+      setTimeout(() => rankingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
     }
-  }, [selectedStudentId, gpaScale, rankScope, loadStudentData])
-
-  const completedRecords = records.filter(record => record.status === 'completed')
-  const warningRecords = completedRecords.filter(record => ['不及格', '缺考', '缓考'].includes(record.examStatus))
-  const archiveOptions = useMemo(() => {
-    const unique = Array.from(new Set(completedRecords.map(getArchiveKey)))
-    return unique.sort((a, b) => b.localeCompare(a))
-  }, [completedRecords])
-  const archivedRecords = archiveFilter === 'all'
-    ? completedRecords
-    : completedRecords.filter(record => getArchiveKey(record) === archiveFilter)
-  const archiveTotalPages = Math.max(Math.ceil(archivedRecords.length / PAGE_SIZE), 1)
-  const archivePageRecords = archivedRecords.slice((archivePage - 1) * PAGE_SIZE, archivePage * PAGE_SIZE)
-
-  useEffect(() => {
-    setArchivePage(page => Math.min(page, archiveTotalPages))
-  }, [archiveTotalPages])
+  }
 
   if (user?.role !== 'student') {
     return (
@@ -281,208 +373,106 @@ export default function GradesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">成绩绩点</h1>
-          <p className="text-muted-foreground">学生端成绩查询、绩点统计、排名与学分完成情况</p>
-        </div>
-        <div className="w-full sm:w-40">
-          <Select value={gpaScale} onValueChange={value => setGpaScale(value as GPAScale)}>
-            <SelectTrigger>
-              <SelectValue placeholder="绩点标准" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="four">四分制</SelectItem>
-              <SelectItem value="five">五分制</SelectItem>
-              <SelectItem value="hundred">百分制</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">成绩绩点</h1>
+        <p className="text-muted-foreground">学生端成绩查询、绩点统计与学期排名</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="平均学分绩点 GPA" value={formatGPA(gpaData?.comprehensiveGPA)} icon={GraduationCap} />
-        <StatCard title="本学期 GPA" value={formatGPA(gpaData?.currentTermGPA)} icon={BookOpen} />
-        <StatCard title="学年 GPA" value={formatGPA(gpaData?.academicYearGPA)} icon={BarChart3} />
-        <StatCard title="累计总 GPA" value={formatGPA(gpaData?.cumulativeGPA)} icon={Award} />
+      {/* 顶部统计卡片 */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <MetricCard icon={GraduationCap} label="总 GPA" value={formatGPA(gpa?.cumulativeGPA)} />
+        <MetricCard icon={BookOpen} label="已修学分" value={`${credit?.completedCredits ?? 0}`} />
       </div>
 
-      <Tabs defaultValue="current" className="space-y-4">
-        <TabsList className="h-auto w-full flex-wrap justify-start">
-          <TabsTrigger value="current">本学期成绩</TabsTrigger>
-          <TabsTrigger value="archive">历史成绩归档</TabsTrigger>
-          <TabsTrigger value="warning">不及格 / 挂科预警</TabsTrigger>
-          <TabsTrigger value="ranking">排名与学情分析</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="current">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <BookOpen className="h-5 w-5 text-primary" />
-                本学期成绩查看
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <GradeTable records={completedRecords} scale={gpaScale} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="archive">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <ListFilter className="h-5 w-5 text-primary" />
-                  历史成绩归档
-                </CardTitle>
-                <Select
-                  value={archiveFilter}
-                  onValueChange={value => {
-                    setArchiveFilter(value)
-                    setArchivePage(1)
-                  }}
-                >
-                  <SelectTrigger className="w-full lg:w-56">
-                    <SelectValue placeholder="按学年 + 学期筛选" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部学年学期</SelectItem>
-                    {archiveOptions.map(option => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <GradeTable records={archivePageRecords} scale={gpaScale} />
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-muted-foreground">
-                  第 {archivePage} / {archiveTotalPages} 页，共 {archivedRecords.length} 门课程
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={archivePage <= 1}
-                    onClick={() => setArchivePage(page => Math.max(page - 1, 1))}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    上一页
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={archivePage >= archiveTotalPages}
-                    onClick={() => setArchivePage(page => Math.min(page + 1, archiveTotalPages))}
-                  >
-                    下一页
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="warning">
-          <Card className="border-destructive/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg text-destructive">
-                <AlertTriangle className="h-5 w-5" />
-                不及格 / 缺考 / 缓考课程
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <GradeTable records={warningRecords} scale={gpaScale} showRemediation />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="ranking">
-          <div className="grid gap-6 xl:grid-cols-[1fr_1.25fr]">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Award className="h-5 w-5 text-primary" />
-                    学业排名
-                  </CardTitle>
-                  <Select value={rankScope} onValueChange={value => setRankScope(value as RankingScope)}>
-                    <SelectTrigger className="w-full sm:w-40">
-                      <SelectValue placeholder="排名范围" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="term">本学期 GPA</SelectItem>
-                      <SelectItem value="year">学年 GPA</SelectItem>
-                      <SelectItem value="cumulative">累计 GPA</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-md bg-muted/50 p-4">
-                  <p className="text-sm text-muted-foreground">{user?.name} 当前按 {rankingScopeLabel[rankScope]} 排名</p>
-                  <p className="mt-1 text-2xl font-bold text-foreground">
-                    {formatGPA(rankings?.scopeGPA)} <span className="text-sm font-normal text-muted-foreground">{scaleLabel[gpaScale]}</span>
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <RankingCard title="专业内排名" rank={rankings?.majorRank ?? 0} total={rankings?.majorTotal ?? 0} />
-                  <RankingCard title="班级排名" rank={rankings?.classRank ?? 0} total={rankings?.classTotal ?? 0} />
-                  <RankingCard title="同年级排名" rank={rankings?.gradeRank ?? 0} total={rankings?.gradeTotal ?? 0} />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                  成绩数据分析
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-md border border-border p-4">
-                    <p className="text-sm text-muted-foreground">已修学分</p>
-                    <p className="mt-1 text-3xl font-bold text-foreground">{creditAnalysis?.completedCredits ?? 0}</p>
-                  </div>
-                  <div className="rounded-md border border-border p-4">
-                    <p className="text-sm text-muted-foreground">剩余毕业学分</p>
-                    <p className="mt-1 text-3xl font-bold text-foreground">{creditAnalysis?.remainingGraduationCredits ?? 0}</p>
-                  </div>
-                </div>
-                {creditAnalysis && (
-                  <div className="space-y-5">
-                    <CreditProgress
-                      label="毕业总学分进度"
-                      value={creditAnalysis.completedCredits}
-                      target={creditAnalysis.graduationRequiredCredits}
-                    />
-                    <CreditProgress
-                      label="必修学分达标情况"
-                      value={creditAnalysis.requiredCredits}
-                      target={creditAnalysis.requiredTargetCredits}
-                      met={creditAnalysis.requiredMet}
-                    />
-                    <CreditProgress
-                      label="选修学分达标情况"
-                      value={creditAnalysis.electiveCredits}
-                      target={creditAnalysis.electiveTargetCredits}
-                      met={creditAnalysis.electiveMet}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+      {/* 大圆角容器：三栏指标 + 最高/最低分 */}
+      <Card>
+        <CardContent className="space-y-6 pt-6">
+          <div className="grid grid-cols-3 gap-3">
+            <InlineMetric icon={ListChecks} value={countedCourses} label="计入课程数量" />
+            <InlineMetric icon={CalendarDays} value={completedSemesters} label="已修学期" />
+            <InlineMetric icon={TrendingUp} value={`${completionPercent}%`} label="学业完成百分比" />
           </div>
-        </TabsContent>
-      </Tabs>
+          <div className="space-y-2 border-t border-border pt-4 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">最高分科目</span>
+              <span className="text-right">
+                {highest?.courseName ?? '-'}
+                {highest && <span className="ml-1 font-semibold text-success">{highest.totalScore}分</span>}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">最低分科目</span>
+              <span className="text-right">
+                {lowest?.courseName ?? '-'}
+                {lowest && <span className="ml-1 font-semibold text-destructive">{lowest.totalScore}分</span>}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 各学期平均绩点 */}
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <div className="flex items-center gap-2">
+            <LineChart className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">各学期平均绩点</span>
+          </div>
+          {semesterGroups.length === 0 ? (
+            <p className="text-sm text-muted-foreground">暂无成绩记录</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {semesterGroups.map(group => (
+                <div key={group.key} className="rounded-xl border border-border bg-card/40 p-4 text-center">
+                  <p className="text-xs text-muted-foreground">{shortTermLabel(group.academicYear, group.semester)}</p>
+                  <p className="mt-2 text-xl font-bold text-foreground">{formatGPA(termGPA(group.records))}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 查询排名按钮 */}
+      <Button
+        className="w-full bg-blue-500 text-white hover:bg-blue-600"
+        onClick={handleQueryRanking}
+      >
+        <Search className="h-4 w-4" />
+        {rankingVisible ? '收起排名' : '查询排名'}
+      </Button>
+
+      {/* 排名模块 */}
+      {rankingVisible && leaderboard && (
+        <div ref={rankingRef}>
+          <RankingModule leaderboard={leaderboard} studentId={user.id} />
+        </div>
+      )}
+
+      {/* 全部成绩（按学期分隔） */}
+      <div className="space-y-4">
+        {semesterGroups.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              暂无成绩记录
+            </CardContent>
+          </Card>
+        ) : (
+          semesterGroups.map(group => (
+            <Card key={group.key}>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {group.academicYear} · {group.semester}
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">{group.records.length} 门</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <GradeTable records={group.records} />
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   )
 }

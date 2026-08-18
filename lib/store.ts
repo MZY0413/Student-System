@@ -43,6 +43,8 @@ import type {
   ExamStatus,
   GPAScale,
   GPASummary,
+  RankingLeaderboard,
+  RankingLeaderboardEntry,
   RankingScope,
   RemediationStatus,
   CourseStudyStatus,
@@ -605,6 +607,56 @@ export function getAcademicRankings(studentId: string, scope: RankingScope = 'cu
     gradeRank: grade.rank,
     gradeTotal: grade.total,
     scopeGPA: major.gpa,
+  }
+}
+
+export function getRankingLeaderboard(studentId: string, scale: GPAScale = 'four'): RankingLeaderboard {
+  const students = getUsers().filter(user => user.role === 'student')
+  const current = students.find(student => student.id === studentId)
+
+  // 排名范围：同专业（与“本专业”口径一致）
+  const peers = current?.major
+    ? students.filter(student => student.major === current.major)
+    : students
+
+  const date = todayString()
+  const entries: RankingLeaderboardEntry[] = peers
+    .map(student => {
+      const summary = calculateGPA(student.id, scale)
+      return {
+        studentId: student.id,
+        studentName: student.name,
+        // 排名依据：当学期平均绩点
+        gpa: summary.currentTermGPA,
+        date,
+      }
+    })
+    .sort((a, b) => b.gpa - a.gpa || a.studentName.localeCompare(b.studentName))
+
+  const myIndex = entries.findIndex(entry => entry.studentId === studentId)
+  const myRank = myIndex >= 0 ? myIndex + 1 : 0
+  const myGPA = myIndex >= 0 ? entries[myIndex].gpa : 0
+  const total = entries.length
+
+  const validGPAs = entries.map(entry => entry.gpa).filter(gpa => gpa > 0)
+  const highestGPA = validGPAs.length ? Math.max(...validGPAs) : 0
+  const lowestGPA = validGPAs.length ? Math.min(...validGPAs) : 0
+  const averageGPA = validGPAs.length ? round2(validGPAs.reduce((sum, gpa) => sum + gpa, 0) / validGPAs.length) : 0
+
+  // 超过本专业多少比例的同学
+  const percentAbove = total > 1 && myRank > 0
+    ? Math.round(((total - myRank) / (total - 1)) * 100)
+    : myRank === 1 && total > 0 ? 100 : 0
+
+  return {
+    entries,
+    myRank,
+    myGPA,
+    total,
+    highestGPA,
+    lowestGPA,
+    averageGPA,
+    percentAbove,
   }
 }
 
