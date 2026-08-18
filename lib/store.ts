@@ -58,6 +58,7 @@ import {
   initialUsers,
   initialProfiles,
   initialBasicProfiles,
+  defaultExperiences,
   initialTasks,
   initialCourses,
   initialStudentCourses,
@@ -197,7 +198,12 @@ export function getProfileByUserId(userId: string): StudentProfile | undefined {
 
 // 学生个人基本资料（学生端）
 export function getBasicProfiles(): StudentBasicProfile[] {
-  return getData(STORAGE_KEYS.BASIC_PROFILES, initialBasicProfiles)
+  const profiles = getData(STORAGE_KEYS.BASIC_PROFILES, initialBasicProfiles)
+  // 迁移：旧数据为空时补充默认代表性经历
+  return profiles.map(profile => ({
+    ...profile,
+    experiences: profile.experiences?.trim() ? profile.experiences : defaultExperiences,
+  }))
 }
 
 export function getBasicProfileByUserId(userId: string): StudentBasicProfile | undefined {
