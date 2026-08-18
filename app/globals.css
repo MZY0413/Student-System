@@ -376,6 +376,9 @@
       background-color 260ms ease,
       box-shadow 260ms ease,
       border-color 260ms ease;
+    /* GPU 加速：提升滚动时 header 的合成性能 */
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   @supports (animation-timeline: scroll()) {
@@ -386,26 +389,27 @@
     }
   }
 
+  /* ═══ 入场动画（仅应用于主要容器，减少重绘范围） ═══ */
   main,
-  header,
-  aside,
-  section,
-  form,
-  [data-slot='card'],
-  [data-slot='dialog-content'],
-  [data-slot='popover-content'],
-  [data-slot='dropdown-menu-content'],
-  h1,
-  h2,
-  h3,
-  p,
-  label,
-  [data-slot='button'],
-  [data-slot='input'],
-  [data-slot='textarea'],
-  [data-slot='select-trigger'] {
-    animation: rise-fade-in 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-    animation-delay: 0.3s;
+  [data-slot='card'] {
+    animation: rise-fade-in 350ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: 0.05s;
+  }
+
+  /* 嵌套卡片添加交错延迟，避免同时动画造成卡顿 */
+  [data-slot='card'] [data-slot='card'] {
+    animation-delay: 0.12s;
+  }
+
+  /* GPU 加速：卡片 hover 效果 */
+  [data-slot='card'] {
+    will-change: transform;
+  }
+
+  /* 离屏渲染优化：主内容区启用 content-visibility */
+  main {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 500px;
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -56,7 +56,7 @@ function EChart({ option, className }: { option: echarts.EChartsOption; classNam
   useEffect(() => {
     if (!ref.current) return
     const chart = echarts.init(ref.current)
-    chart.setOption(option)
+    chart.setOption({ animation: false, ...option })
     const resize = () => chart.resize()
     window.addEventListener('resize', resize)
     return () => {
@@ -135,6 +135,7 @@ export default function CoursesPage() {
   }, [overview])
 
   const ringOption = useMemo<echarts.EChartsOption>(() => ({
+    animation: false,
     series: [{
       type: 'pie',
       radius: ['72%', '90%'],
@@ -148,6 +149,7 @@ export default function CoursesPage() {
   }), [overview])
 
   const pieOption = useMemo<echarts.EChartsOption>(() => ({
+    animation: false,
     tooltip: { trigger: 'item' },
     legend: { bottom: 0, textStyle: { color: '#64748b' } },
     series: [{

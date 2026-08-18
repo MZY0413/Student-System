@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, useState, useMemo, type ComponentType } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -14,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { getUnreadNotifications, markAllHelpNotificationsRead, markNotificationRead } from '@/lib/store'
 import {
   Brain,
@@ -29,8 +28,6 @@ import {
   Calendar,
   Bell,
   ChevronDown,
-  PanelLeftClose,
-  PanelLeftOpen,
   LogOut,
   Menu,
   X,
@@ -83,7 +80,8 @@ function isItemActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-function NavDirectory({
+// ── 移动端导航目录 ──────────────────────────────────────────────
+function MobileNav({
   groups,
   pathname,
   onNavigate,
@@ -127,124 +125,79 @@ function NavDirectory({
   )
 }
 
-function CollapsibleSidebar({
-  groups,
-  pathname,
-}: {
-  groups: NavGroup[]
-  pathname: string
-}) {
-  const [isPinnedOpen, setIsPinnedOpen] = useState(false)
-  const [isHovered, setIsHovered] = useState(false)
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(groups.map(group => [group.title, true]))
-  )
-  const expanded = isPinnedOpen || isHovered
-  const isFloatingOpen = expanded && !isPinnedOpen
-
-  useEffect(() => {
-    setOpenGroups(prev => {
-      const next = { ...prev }
-      groups.forEach(group => {
-        const activeInGroup = group.items.some(item => isItemActive(pathname, item.href))
-        if (next[group.title] === undefined || activeInGroup) next[group.title] = true
-      })
-      return next
-    })
-  }, [groups, pathname])
-
+// ── 桌面端顶部导航 ──────────────────────────────────────────────
+function DesktopNav({ groups, pathname }: { groups: NavGroup[]; pathname: string }) {
   return (
-    <aside
-      className={cn(
-        'relative hidden shrink-0 transition-[width] duration-200 ease-out lg:block',
-        isPinnedOpen ? 'w-64' : 'w-18'
-      )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div
-        className={cn(
-          'sticky top-16 z-40 h-[calc(100vh-4rem)] overflow-hidden border-r border-border bg-card/70 p-3 shadow-[inset_-1px_0_0_rgb(255_255_255_/_0.04)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out',
-          expanded ? 'w-64' : 'w-18',
-          isFloatingOpen && 'shadow-xl'
-        )}
-      >
-        <div className="mb-3 flex items-center justify-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={() => setIsPinnedOpen(open => !open)}
-            aria-label={isPinnedOpen ? '收起侧边栏' : '展开侧边栏'}
-          >
-            {expanded ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-          </Button>
-        </div>
+    <nav className="hidden lg:flex items-center gap-0.5 ml-6">
+      {groups.map(group => {
+        const activeInGroup = group.items.some(item => isItemActive(pathname, item.href))
 
-        <nav className="space-y-2">
-          {groups.map(group => {
-            const isOpen = openGroups[group.title] ?? true
-            const activeInGroup = group.items.some(item => isItemActive(pathname, item.href))
-            const FirstIcon = group.items[0]?.icon
+        // 单个菜单项：直接跳转链接
+        if (group.items.length === 1) {
+          const item = group.items[0]
+          const Icon = item.icon
+          const active = isItemActive(pathname, item.href)
+          return (
+            <Link
+              key={group.title}
+              href={item.href}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                active
+                  ? 'bg-primary/15 text-primary shadow-[0_0_12px_rgb(103_213_255_/_0.2)]'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{item.label}</span>
+            </Link>
+          )
+        }
 
-            return (
-              <Collapsible
-                key={group.title}
-                open={expanded ? isOpen : true}
-                onOpenChange={open => setOpenGroups(prev => ({ ...prev, [group.title]: open }))}
+        // 多个菜单项：下拉菜单
+        return (
+          <DropdownMenu key={group.title}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  activeInGroup
+                    ? 'bg-primary/15 text-primary shadow-[0_0_12px_rgb(103_213_255_/_0.2)]'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                )}
               >
-                {expanded && (
-                  <CollapsibleTrigger asChild>
-                    <button
+                {group.title}
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52">
+              {group.items.map(item => {
+                const Icon = item.icon
+                const active = isItemActive(pathname, item.href)
+                return (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link
+                      href={item.href}
                       className={cn(
-                        'flex h-10 w-full items-center justify-between rounded-lg px-3 text-sm font-medium transition-colors',
-                        activeInGroup
-                          ? 'text-foreground'
-                          : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                        'flex items-center gap-2.5 py-2 w-full',
+                        active && 'text-primary font-medium'
                       )}
                     >
-                      <span className="flex min-w-0 items-center gap-2">
-                        {FirstIcon && <FirstIcon className="h-4 w-4 shrink-0" />}
-                        <span className="truncate text-left">{group.title}</span>
-                      </span>
-                      <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', isOpen ? 'rotate-0' : '-rotate-90')} />
-                    </button>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <div className={cn('mt-1 space-y-1', expanded ? 'pl-2' : 'pl-0')}>
-                    {group.items.map(item => {
-                      const Icon = item.icon
-                      const active = isItemActive(pathname, item.href)
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          title={!expanded ? item.label : undefined}
-                          className={cn(
-                            'flex h-10 items-center rounded-lg text-sm font-medium transition-colors',
-                            expanded ? 'gap-2 px-3' : 'justify-center px-0',
-                            active
-                              ? 'bg-primary text-primary-foreground shadow-sm'
-                              : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                          )}
-                        >
-                          <Icon className="h-4 w-4 shrink-0" />
-                          {expanded && <span className="truncate">{item.label}</span>}
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            )
-          })}
-        </nav>
-      </div>
-    </aside>
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      })}
+    </nav>
   )
 }
 
+// ── 仪表盘布局 ──────────────────────────────────────────────────
 export default function DashboardLayout({
   children,
 }: {
@@ -256,11 +209,35 @@ export default function DashboardLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
 
+  // 路由守卫
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/')
     }
   }, [user, isLoading, router])
+
+  // 缓存未读通知，避免每次渲染读取 localStorage
+  const unreadNotifications = useMemo(
+    () =>
+      user
+        ? getUnreadNotifications(user.id).filter(
+            n => n.type === 'help_post_answered' || n.type === 'help_mentioned'
+          )
+        : [],
+    [user?.id]
+  )
+
+  // 移动端菜单打开时禁止 body 滚动
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [mobileMenuOpen])
 
   if (isLoading) {
     return (
@@ -284,32 +261,32 @@ export default function DashboardLayout({
     router.push('/')
   }
 
-  const unreadNotifications = getUnreadNotifications(user.id)
-    .filter(n => n.type === 'help_post_answered' || n.type === 'help_mentioned')
-
   return (
     <div className="min-h-screen bg-transparent">
-      {/* 顶部导航栏 */}
+      {/* ═══ 顶部导航栏 ═══ */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-card/60 shadow-[0_12px_40px_rgb(0_0_0_/_0.24)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/45">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="p-1.5 bg-primary rounded-lg">
-              <Brain className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-foreground hidden sm:inline">AI 实验班</span>
-          </Link>
+          {/* 左侧：Logo + 桌面导航 */}
+          <div className="flex items-center">
+            <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+              <div className="p-1.5 bg-primary rounded-lg">
+                <Brain className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="font-semibold text-foreground hidden sm:inline">AI 实验班</span>
+            </Link>
 
-          <div className="hidden lg:block" />
+            <DesktopNav groups={navGroups} pathname={pathname} />
+          </div>
 
-          {/* 用户菜单 */}
-          <div className="flex items-center gap-2">
+          {/* 右侧：通知 + 用户菜单 + 移动端汉堡按钮 */}
+          <div className="flex items-center gap-1.5">
             {/* 移动端菜单按钮 */}
             <Button
               variant="ghost"
               size="icon"
               className="lg:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
@@ -366,6 +343,7 @@ export default function DashboardLayout({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* 用户菜单 */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 px-2">
@@ -394,22 +372,18 @@ export default function DashboardLayout({
           </div>
         </div>
 
-        {/* 移动端导航菜单 */}
+        {/* 移动端导航面板 */}
         {mobileMenuOpen && (
-          <nav className="lg:hidden border-t border-border bg-card px-4 py-4">
-            <NavDirectory groups={navGroups} pathname={pathname} onNavigate={() => setMobileMenuOpen(false)} />
+          <nav className="lg:hidden border-t border-border bg-card/95 backdrop-blur-xl px-4 py-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <MobileNav groups={navGroups} pathname={pathname} onNavigate={() => setMobileMenuOpen(false)} />
           </nav>
         )}
       </header>
 
-      <div className="mx-auto flex max-w-7xl">
-        <CollapsibleSidebar groups={navGroups} pathname={pathname} />
-
-        {/* 主内容区 */}
-        <main className="flex-1 px-4 py-6">
-          {children}
-        </main>
-      </div>
+      {/* ═══ 主内容区 ═══ */}
+      <main className="mx-auto max-w-7xl px-4 py-6">
+        {children}
+      </main>
     </div>
   )
 }
