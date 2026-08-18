@@ -18,12 +18,9 @@ import { getUnreadNotifications, markAllHelpNotificationsRead, markNotificationR
 import {
   Brain,
   User,
-  ClipboardList,
   GraduationCap,
-  GitBranch,
   BarChart3,
-  Handshake,
-  Calendar,
+  FileText,
   Bell,
   ChevronDown,
   LogOut,
@@ -42,11 +39,8 @@ const studentNavGroups: NavGroup[] = [
   {
     title: '学业',
     items: [
-      { href: '/dashboard/tasks', label: '考核任务', icon: ClipboardList },
       { href: '/dashboard/grades', label: '成绩绩点', icon: GraduationCap },
-      { href: '/dashboard/courses', label: '课程培养方案进度一览', icon: GitBranch },
-      { href: '/dashboard/help', label: '学业互助', icon: Handshake },
-      { href: '/dashboard/todo', label: '学业待办', icon: Calendar },
+      { href: '/dashboard/indicators', label: '考核指标', icon: FileText },
     ],
   },
 ]
@@ -61,7 +55,6 @@ const teacherNavGroups: NavGroup[] = [
     items: [
       { href: '/dashboard/students', label: '学生管理', icon: User },
       { href: '/dashboard/gpa', label: '学生绩点', icon: GraduationCap },
-      { href: '/dashboard/tasks', label: '考核管理', icon: ClipboardList },
     ],
   },
 ]
