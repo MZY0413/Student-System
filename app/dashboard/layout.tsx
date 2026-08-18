@@ -22,9 +22,7 @@ import {
   GraduationCap,
   GitBranch,
   BarChart3,
-  MessageSquare,
   Handshake,
-  BookOpen,
   Calendar,
   Bell,
   ChevronDown,
@@ -51,13 +49,6 @@ const studentNavGroups: NavGroup[] = [
       { href: '/dashboard/todo', label: '学业待办', icon: Calendar },
     ],
   },
-  {
-    title: '服务',
-    items: [
-      { href: '/dashboard/feedback', label: '问题反馈', icon: MessageSquare },
-      { href: '/dashboard/resources', label: '资源库', icon: BookOpen },
-    ],
-  },
 ]
 
 const teacherNavGroups: NavGroup[] = [
@@ -69,8 +60,8 @@ const teacherNavGroups: NavGroup[] = [
     title: '管理',
     items: [
       { href: '/dashboard/students', label: '学生管理', icon: User },
+      { href: '/dashboard/gpa', label: '学生绩点', icon: GraduationCap },
       { href: '/dashboard/tasks', label: '考核管理', icon: ClipboardList },
-      { href: '/dashboard/feedback', label: '反馈处理', icon: MessageSquare },
     ],
   },
 ]

@@ -34,7 +34,7 @@ export interface StudentBasicProfile {
   grade: string
   hometown: string
   email: string
-  motto: string
+  experiences: string
   strengths: string
 }
 
@@ -198,6 +198,15 @@ export interface RankingLeaderboard {
   lowestGPA: number
   averageGPA: number
   percentAbove: number
+}
+
+export interface SemesterGPA {
+  key: string
+  academicYear: string
+  semester: string
+  gpa: number
+  credits: number
+  courseCount: number
 }
 
 export interface CreditAnalysis {

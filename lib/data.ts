@@ -159,7 +159,7 @@ export const initialBasicProfiles: StudentBasicProfile[] = [
     grade: '大二',
     hometown: '江苏·南京',
     email: 'zhangming@example.com',
-    motto: '保持好奇，持续学习。',
+    experiences: '',
     strengths: '计算机视觉、Python、动手能力强',
   },
   {
@@ -169,7 +169,7 @@ export const initialBasicProfiles: StudentBasicProfile[] = [
     grade: '大二',
     hometown: '广东·深圳',
     email: 'lihua@example.com',
-    motto: '解决难题，是最好的成长。',
+    experiences: '',
     strengths: '强化学习、C++、机器人方向',
   },
   {
@@ -179,7 +179,7 @@ export const initialBasicProfiles: StudentBasicProfile[] = [
     grade: '大二',
     hometown: '四川·成都',
     email: 'wangfang@example.com',
-    motto: '用数据说话，让模型落地。',
+    experiences: '',
     strengths: '数据分析、SQL、可视化表达',
   },
 ]

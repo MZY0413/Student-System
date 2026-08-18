@@ -45,6 +45,7 @@ import type {
   GPASummary,
   RankingLeaderboard,
   RankingLeaderboardEntry,
+  SemesterGPA,
   RankingScope,
   RemediationStatus,
   CourseStudyStatus,
@@ -610,28 +611,70 @@ export function getAcademicRankings(studentId: string, scope: RankingScope = 'cu
   }
 }
 
-export function getRankingLeaderboard(studentId: string, scale: GPAScale = 'four'): RankingLeaderboard {
+export function getCurrentSemesterKey(): string {
+  return `${CURRENT_ACADEMIC_YEAR}-${CURRENT_SEMESTER}`
+}
+
+export function getStudentSemesterGPAs(studentId: string): SemesterGPA[] {
+  const records = getCourseGradeRecords(studentId).filter(record => record.status === 'completed')
+  const groups = new Map<string, CourseGradeRecord[]>()
+  records.forEach(record => {
+    const key = `${record.academicYear}-${record.semester}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(record)
+  })
+
+  return Array.from(groups.entries())
+    .map(([key, list]) => {
+      const eligible = list.filter(record => record.totalScore !== undefined && record.examStatus !== '缓考')
+      const totalCredits = eligible.reduce((sum, record) => sum + record.credit, 0)
+      const gpa = totalCredits === 0
+        ? 0
+        : round2(eligible.reduce((sum, record) => sum + scoreToGPA(record.totalScore, 'four') * record.credit, 0) / totalCredits)
+      return {
+        key,
+        academicYear: list[0].academicYear,
+        semester: list[0].semester,
+        gpa,
+        credits: totalCredits,
+        courseCount: eligible.length,
+      }
+    })
+    .sort((a, b) => a.key.localeCompare(b.key))
+}
+
+export function getAllSemesters(): { key: string; academicYear: string; semester: string }[] {
   const students = getUsers().filter(user => user.role === 'student')
-  const current = students.find(student => student.id === studentId)
+  const map = new Map<string, { key: string; academicYear: string; semester: string }>()
+  students.forEach(student => {
+    getStudentSemesterGPAs(student.id).forEach(sgpa => {
+      if (!map.has(sgpa.key)) {
+        map.set(sgpa.key, { key: sgpa.key, academicYear: sgpa.academicYear, semester: sgpa.semester })
+      }
+    })
+  })
+  return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key))
+}
 
-  // 排名范围：同专业（与“本专业”口径一致）
-  const peers = current?.major
-    ? students.filter(student => student.major === current.major)
-    : students
-
+export function getSemesterRanking(semesterKey: string): RankingLeaderboardEntry[] {
+  const students = getUsers().filter(user => user.role === 'student')
   const date = todayString()
-  const entries: RankingLeaderboardEntry[] = peers
+  return students
     .map(student => {
-      const summary = calculateGPA(student.id, scale)
+      const sgpa = getStudentSemesterGPAs(student.id).find(item => item.key === semesterKey)
       return {
         studentId: student.id,
         studentName: student.name,
-        // 排名依据：当学期平均绩点
-        gpa: summary.currentTermGPA,
+        gpa: sgpa?.gpa ?? 0,
         date,
       }
     })
     .sort((a, b) => b.gpa - a.gpa || a.studentName.localeCompare(b.studentName))
+}
+
+export function getRankingLeaderboard(studentId: string, semesterKey?: string): RankingLeaderboard {
+  const key = semesterKey ?? getCurrentSemesterKey()
+  const entries = getSemesterRanking(key)
 
   const myIndex = entries.findIndex(entry => entry.studentId === studentId)
   const myRank = myIndex >= 0 ? myIndex + 1 : 0
