@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ChangePasswordDialog } from '@/components/dashboard/change-password-dialog'
 import {
   Brain,
   User,
@@ -21,6 +22,7 @@ import {
   BarChart3,
   FileText,
   ChevronDown,
+  KeyRound,
   LogOut,
   Menu,
   X,
@@ -189,6 +191,7 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
 
   // 路由守卫
   useEffect(() => {
@@ -281,6 +284,10 @@ export default function DashboardLayout({
                   </p>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
+                  <KeyRound className="w-4 h-4 mr-2" />
+                  修改密码
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                   <LogOut className="w-4 h-4 mr-2" />
                   退出登录
@@ -302,6 +309,8 @@ export default function DashboardLayout({
       <main className="mx-auto max-w-7xl px-4 py-6">
         {children}
       </main>
+
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </div>
   )
 }

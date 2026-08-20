@@ -169,6 +169,12 @@ export async function logout(): Promise<void> {
   await supabase.auth.signOut()
 }
 
+// 修改当前登录用户密码（Supabase Auth 哈希存储）
+export async function changePassword(newPassword: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  return { error: error?.message ?? null }
+}
+
 // ── 读 ────────────────────────────────────────────────────────
 export async function getUsers(): Promise<User[]> {
   const { data, error } = await supabase.from('users').select('*')

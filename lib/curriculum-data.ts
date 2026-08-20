@@ -268,9 +268,12 @@ studentStatus.student3.深度学习 = { status: 'completed', totalScore: 92, exa
 studentStatus.student3.神经网络与深度学习 = { status: 'completed', totalScore: 90, examStatus: '通过', remediationStatus: '无需' }
 studentStatus.student3.文本挖掘 = { status: 'inProgress' }
 
-export const initialStudentCourses: StudentCourse[] = ['student1', 'student2', 'student3'].flatMap(studentId =>
+// 演示成绩映射到前三位同学（真实学号：朱云舒 / 李子阳 / 廉宇航），其余同学待真实成绩导入
+const demoStudentIds = ['202511173001', '202511173008', '202511173015']
+
+export const initialStudentCourses: StudentCourse[] = demoStudentIds.flatMap((studentId, i) =>
   initialCourses.map(course => {
-    const item = studentStatus[studentId]?.[course.name]
+    const item = studentStatus[`student${i + 1}`]?.[course.name]
     const totalScore = item?.totalScore
     return {
       studentId,

@@ -7,7 +7,7 @@ import {
   initialCourses,
   initialStudentCourses,
 } from '../lib/data'
-import { usernameToEmail } from '../lib/auth-email'
+import { AUTH_EMAIL_DOMAIN, initialPassword, usernameToEmail } from '../lib/auth-email'
 
 dotenv.config({ path: '.env.local' })
 
@@ -32,31 +32,36 @@ async function upsert(table: string, rows: Record<string, unknown>[]) {
   }
 }
 
-// 创建（或复用）Auth 用户，返回 auth.users 的 uuid
-async function getOrCreateAuthUser(email: string, password: string, name: string, role: string): Promise<string> {
-  const { data, error } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { name, role },
-  })
-  if (!error && data.user) return data.user.id
-
-  // 已存在：按邮箱找回
+// 清理本系统创建的旧 auth 用户（邮箱以固定域名结尾），保证可重复执行
+async function clearAuthUsers(): Promise<number> {
   const { data: listData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
-  const existing = listData?.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
-  if (existing) return existing.id
-
-  throw error ?? new Error(`无法创建或找到 Auth 用户: ${email}`)
+  const ours = (listData?.users ?? []).filter(u => u.email?.endsWith(AUTH_EMAIL_DOMAIN))
+  for (const u of ours) {
+    await supabase.auth.admin.deleteUser(u.id)
+  }
+  return ours.length
 }
 
 async function main() {
-  // 1. 创建（或复用）Auth 用户，得到「种子文本 id → auth uuid」映射
+  const removed = await clearAuthUsers()
+  if (removed > 0) console.log(`✔ 清理旧 auth 用户: ${removed} 个`)
+
+  // 1. 创建 Auth 用户（密码 = 账号后六位），得到「账号 → auth uuid」映射
   const idMap = new Map<string, string>()
   for (const u of initialUsers) {
     const email = usernameToEmail(u.username)
-    const authId = await getOrCreateAuthUser(email, u.password, u.name, u.role)
-    idMap.set(u.id, authId)
+    const password = initialPassword(u.username)
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name: u.name, role: u.role },
+    })
+    if (error || !data.user) {
+      console.error(`❌ 创建 auth 用户 ${u.username} 失败:`, error?.message)
+      process.exit(1)
+    }
+    idMap.set(u.id, data.user.id)
   }
   console.log(`✔ auth.users: ${idMap.size} 个`)
 

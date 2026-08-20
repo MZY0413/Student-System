@@ -24,6 +24,10 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (!/^\d{6}$/.test(password)) {
+      setError('密码为 6 位数字')
+      return
+    }
     setIsLoading(true)
 
     try {
@@ -90,11 +94,11 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="username">用户名</FieldLabel>
+                <FieldLabel htmlFor="username">学号 / 工号</FieldLabel>
                 <Input
                   id="username"
                   type="text"
-                  placeholder="请输入用户名"
+                  placeholder="请输入学号或工号"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -106,9 +110,11 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="请输入密码"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="请输入 6 位数字密码"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value.replace(/\D/g, ''))}
                   required
                   autoComplete="current-password"
                 />
@@ -133,11 +139,11 @@ export default function LoginPage() {
             <div className="space-y-1 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <GraduationCap className="w-4 h-4" />
-                <span>学生：student1 / 123456</span>
+                <span>学生：学号 / 学号后六位（如 202511173001 → 173001）</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                <span>教师：teacher / 123456</span>
+                <span>教师：工号 / 工号后六位</span>
               </div>
             </div>
           </div>
