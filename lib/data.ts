@@ -16,8 +16,11 @@ export {
   initialStudentCourses,
 } from './curriculum-data'
 
+// 种子用户（含登录密码；仅 seed 脚本用它创建 Supabase Auth 用户）
+export type SeedUser = User & { password: string }
+
 // 预设用户
-export const initialUsers: User[] = [
+export const initialUsers: SeedUser[] = [
   {
     id: 'student1',
     username: 'student1',

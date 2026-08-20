@@ -1,13 +1,19 @@
 -- ============================================================
 -- AI 实验班学业管理系统 —— Supabase 数据库结构
--- 使用方法：Supabase Dashboard → SQL Editor → 新建查询 → 粘贴本文件全部内容 → Run
+-- 用法：npm run apply:schema（Management API）或 SQL Editor 粘贴执行
 -- ============================================================
 
--- 用户（应用资料；登录鉴权后续接入 Supabase Auth）
-create table if not exists public.users (
-  id text primary key,
+-- 清理旧表（可重复执行）
+drop table if exists public.student_courses;
+drop table if exists public.student_profiles;
+drop table if exists public.basic_profiles;
+drop table if exists public.courses;
+drop table if exists public.users;
+
+-- 用户（应用资料；id 关联 auth.users，登录鉴权走 Supabase Auth）
+create table public.users (
+  id uuid primary key references auth.users(id) on delete cascade,
   username text unique not null,
-  password text,
   role text not null check (role in ('student', 'teacher')),
   name text not null,
   avatar text,
@@ -17,8 +23,8 @@ create table if not exists public.users (
 );
 
 -- 学生基本资料（个人卡片 / 代表性经历）
-create table if not exists public.basic_profiles (
-  user_id text primary key references public.users(id) on delete cascade,
+create table public.basic_profiles (
+  user_id uuid primary key references public.users(id) on delete cascade,
   name text,
   gender text,
   grade text,
@@ -29,8 +35,8 @@ create table if not exists public.basic_profiles (
 );
 
 -- 学生画像（项目经历等）
-create table if not exists public.student_profiles (
-  user_id text primary key references public.users(id) on delete cascade,
+create table public.student_profiles (
+  user_id uuid primary key references public.users(id) on delete cascade,
   nickname text,
   bio text,
   interests jsonb not null default '[]',
@@ -39,7 +45,7 @@ create table if not exists public.student_profiles (
 );
 
 -- 课程
-create table if not exists public.courses (
+create table public.courses (
   id text primary key,
   name text not null,
   credit numeric not null,
@@ -57,8 +63,8 @@ create table if not exists public.courses (
 );
 
 -- 学生课程成绩
-create table if not exists public.student_courses (
-  student_id text references public.users(id) on delete cascade,
+create table public.student_courses (
+  student_id uuid references public.users(id) on delete cascade,
   course_id text references public.courses(id) on delete cascade,
   status text,
   regular_score numeric,
@@ -70,7 +76,7 @@ create table if not exists public.student_courses (
 );
 
 -- ============================================================
--- 开启行级安全（RLS）
+-- 行级安全（RLS）：必须登录（authenticated）才能读写
 -- ============================================================
 alter table public.users enable row level security;
 alter table public.basic_profiles enable row level security;
@@ -78,12 +84,12 @@ alter table public.student_profiles enable row level security;
 alter table public.courses enable row level security;
 alter table public.student_courses enable row level security;
 
--- 演示阶段：允许所有登录用户读全部数据（后续可按 auth.uid() 收紧到本人/教师）
-create policy "read all users" on public.users for select using (true);
-create policy "read all basic_profiles" on public.basic_profiles for select using (true);
-create policy "read all student_profiles" on public.student_profiles for select using (true);
-create policy "read all courses" on public.courses for select using (true);
-create policy "read all student_courses" on public.student_courses for select using (true);
+-- 读取：允许所有已登录用户读取（学生/教师跨用户查看同学、排名等）
+create policy "authenticated read users" on public.users for select using (auth.role() = 'authenticated');
+create policy "authenticated read basic_profiles" on public.basic_profiles for select using (auth.role() = 'authenticated');
+create policy "authenticated read student_profiles" on public.student_profiles for select using (auth.role() = 'authenticated');
+create policy "authenticated read courses" on public.courses for select using (auth.role() = 'authenticated');
+create policy "authenticated read student_courses" on public.student_courses for select using (auth.role() = 'authenticated');
 
--- 写入：演示阶段开放（后续收紧）
-create policy "write basic_profiles" on public.basic_profiles for all using (true) with check (true);
+-- 写入：仅本人可写基本资料
+create policy "own write basic_profiles" on public.basic_profiles for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from './supabase/client'
+import { usernameToEmail } from './auth-email'
 import type {
   User,
   StudentProfile,
@@ -18,7 +19,6 @@ import type {
   ExamStatus,
   RemediationStatus,
   GPAScale,
-  Notification,
 } from './types'
 
 const CURRENT_ACADEMIC_YEAR = '2025-2026学年'
@@ -31,7 +31,6 @@ const ELECTIVE_TARGET_CREDITS = 40
 type UserRow = {
   id: string
   username: string
-  password: string | null
   role: User['role']
   name: string
   avatar: string | null
@@ -43,7 +42,6 @@ function mapUser(row: UserRow): User {
   return {
     id: row.id,
     username: row.username,
-    password: row.password ?? '',
     role: row.role,
     name: row.name,
     avatar: row.avatar ?? undefined,
@@ -153,47 +151,22 @@ function mapStudentCourse(row: StudentCourseRow): StudentCourse {
   }
 }
 
-// ── 会话（当前登录用户，存 localStorage） ───────────────────────
-const CURRENT_USER_KEY = 'ai_class_current_user'
-
-export function getCurrentUser(): User | null {
-  if (typeof window === 'undefined') return null
-  const stored = localStorage.getItem(CURRENT_USER_KEY)
-  if (stored) {
-    try {
-      return JSON.parse(stored)
-    } catch {
-      return null
-    }
-  }
-  return null
-}
-
-export function setCurrentUser(user: User | null): void {
-  if (typeof window === 'undefined') return
-  if (user) {
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user))
-  } else {
-    localStorage.removeItem(CURRENT_USER_KEY)
-  }
-}
-
-// ── 鉴权 ──────────────────────────────────────────────────────
-export async function login(username: string, password: string): Promise<User | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('username', username)
-    .eq('password', password)
-    .maybeSingle()
+// ── 鉴权（Supabase Auth：邮箱+密码，密码哈希存于 auth.users） ──
+export async function getUserByAuthId(authId: string): Promise<User | null> {
+  const { data, error } = await supabase.from('users').select('*').eq('id', authId).maybeSingle()
   if (error || !data) return null
-  const user = mapUser(data as UserRow)
-  setCurrentUser(user)
-  return user
+  return mapUser(data as UserRow)
 }
 
-export function logout(): void {
-  setCurrentUser(null)
+export async function login(username: string, password: string): Promise<User | null> {
+  const email = usernameToEmail(username)
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error || !data.user) return null
+  return getUserByAuthId(data.user.id)
+}
+
+export async function logout(): Promise<void> {
+  await supabase.auth.signOut()
 }
 
 // ── 读 ────────────────────────────────────────────────────────
@@ -516,11 +489,3 @@ export async function getClassStats(): Promise<ClassStats> {
   const averageGPA = totalStudents > 0 ? round2(totalGPA / totalStudents) : 0
   return { totalStudents, averageGPA, completionRate: 0, passRate: 0 }
 }
-
-// ── 通知（已废弃，占位） ───────────────────────────────────────
-export function getUnreadNotifications(_recipientId: string): Notification[] {
-  return []
-}
-export function markNotificationRead(_notificationId: string, _recipientId: string): void {}
-export function markAllNotificationsRead(_recipientId: string): void {}
-export function markAllHelpNotificationsRead(_recipientId: string): void {}

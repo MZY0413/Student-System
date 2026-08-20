@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, type ComponentType } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -14,14 +14,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { getUnreadNotifications, markAllHelpNotificationsRead, markNotificationRead } from '@/lib/store'
 import {
   Brain,
   User,
   GraduationCap,
   BarChart3,
   FileText,
-  Bell,
   ChevronDown,
   LogOut,
   Menu,
@@ -191,7 +189,6 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [notifOpen, setNotifOpen] = useState(false)
 
   // 路由守卫
   useEffect(() => {
@@ -199,17 +196,6 @@ export default function DashboardLayout({
       router.push('/')
     }
   }, [user, isLoading, router])
-
-  // 缓存未读通知，避免每次渲染读取 localStorage
-  const unreadNotifications = useMemo(
-    () =>
-      user
-        ? getUnreadNotifications(user.id).filter(
-            n => n.type === 'help_post_answered' || n.type === 'help_mentioned'
-          )
-        : [],
-    [user?.id]
-  )
 
   // 移动端菜单打开时禁止 body 滚动
   useEffect(() => {
@@ -274,58 +260,6 @@ export default function DashboardLayout({
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
-
-            {/* 通知 */}
-            <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="w-5 h-5" />
-                  {unreadNotifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
-                      {unreadNotifications.length > 99 ? '99+' : unreadNotifications.length}
-                    </span>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <div className="px-2 py-1.5 flex items-center justify-between">
-                  <p className="text-sm font-medium">通知</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    disabled={unreadNotifications.length === 0}
-                    onClick={() => markAllHelpNotificationsRead(user.id)}
-                  >
-                    全部已读
-                  </Button>
-                </div>
-                <DropdownMenuSeparator />
-                {unreadNotifications.length === 0 ? (
-                  <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                    暂无未读通知
-                  </div>
-                ) : (
-                  unreadNotifications.slice(0, 8).map(n => (
-                    <DropdownMenuItem
-                      key={n.id}
-                      className="flex flex-col items-start gap-1 py-2"
-                      onClick={() => {
-                        markNotificationRead(n.id, user.id)
-                        setNotifOpen(false)
-                        router.push(n.targetPath ?? '/dashboard/help')
-                      }}
-                    >
-                      <div className="w-full flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium">{n.title}</span>
-                        <span className="text-xs text-muted-foreground">{n.createdAt}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground line-clamp-2">{n.content}</span>
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
 
             {/* 用户菜单 */}
             <DropdownMenu>

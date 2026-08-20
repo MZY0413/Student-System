@@ -7,6 +7,7 @@ import {
   initialCourses,
   initialStudentCourses,
 } from '../lib/data'
+import { usernameToEmail } from '../lib/auth-email'
 
 dotenv.config({ path: '.env.local' })
 
@@ -31,11 +32,38 @@ async function upsert(table: string, rows: Record<string, unknown>[]) {
   }
 }
 
+// 创建（或复用）Auth 用户，返回 auth.users 的 uuid
+async function getOrCreateAuthUser(email: string, password: string, name: string, role: string): Promise<string> {
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name, role },
+  })
+  if (!error && data.user) return data.user.id
+
+  // 已存在：按邮箱找回
+  const { data: listData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const existing = listData?.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
+  if (existing) return existing.id
+
+  throw error ?? new Error(`无法创建或找到 Auth 用户: ${email}`)
+}
+
 async function main() {
+  // 1. 创建（或复用）Auth 用户，得到「种子文本 id → auth uuid」映射
+  const idMap = new Map<string, string>()
+  for (const u of initialUsers) {
+    const email = usernameToEmail(u.username)
+    const authId = await getOrCreateAuthUser(email, u.password, u.name, u.role)
+    idMap.set(u.id, authId)
+  }
+  console.log(`✔ auth.users: ${idMap.size} 个`)
+
+  // 2. 应用用户表（id = auth uuid）
   await upsert('users', initialUsers.map(u => ({
-    id: u.id,
+    id: idMap.get(u.id)!,
     username: u.username,
-    password: u.password,
     role: u.role,
     name: u.name,
     avatar: u.avatar ?? null,
@@ -45,7 +73,7 @@ async function main() {
   })))
 
   await upsert('basic_profiles', initialBasicProfiles.map(p => ({
-    user_id: p.userId,
+    user_id: idMap.get(p.userId)!,
     name: p.name,
     gender: p.gender,
     grade: p.grade,
@@ -56,7 +84,7 @@ async function main() {
   })))
 
   await upsert('student_profiles', initialProfiles.map(p => ({
-    user_id: p.userId,
+    user_id: idMap.get(p.userId)!,
     nickname: p.nickname,
     bio: p.bio,
     interests: p.interests,
@@ -82,7 +110,7 @@ async function main() {
   })))
 
   await upsert('student_courses', initialStudentCourses.map(sc => ({
-    student_id: sc.studentId,
+    student_id: idMap.get(sc.studentId)!,
     course_id: sc.courseId,
     status: sc.status,
     regular_score: sc.regularScore ?? null,
