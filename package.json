@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "seed:supabase": "tsx scripts/seed-supabase.ts",
-    "apply:schema": "tsx scripts/apply-schema.ts"
+    "apply:schema": "tsx scripts/apply-schema.ts",
+    "import:grades": "tsx scripts/import-grades.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
