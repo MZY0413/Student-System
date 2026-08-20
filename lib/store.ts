@@ -135,6 +135,7 @@ type StudentCourseRow = {
   regular_score: number | null
   final_score: number | null
   total_score: number | null
+  gpa: number | null
   exam_status: ExamStatus | null
   remediation_status: RemediationStatus | null
 }
@@ -146,6 +147,7 @@ function mapStudentCourse(row: StudentCourseRow): StudentCourse {
     regularScore: row.regular_score ?? undefined,
     finalScore: row.final_score ?? undefined,
     totalScore: row.total_score ?? undefined,
+    gpa: row.gpa ?? undefined,
     examStatus: row.exam_status ?? undefined,
     remediationStatus: row.remediation_status ?? undefined,
   }
@@ -285,11 +287,17 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+// 单门课程的绩点：优先用成绩单里的官方绩点（4.0 制），否则用总成绩按通用映射推导
+function gpaPoint(record: CourseGradeRecord, scale: GPAScale): number {
+  if (scale === 'four' && record.gpa !== undefined) return record.gpa
+  return scoreToGPA(record.totalScore, scale)
+}
+
 function weightedGPA(records: CourseGradeRecord[], scale: GPAScale = 'four'): number {
   const eligible = records.filter(record => record.status === 'completed' && record.totalScore !== undefined && record.examStatus !== '缓考')
   const totalCredits = eligible.reduce((sum, record) => sum + record.credit, 0)
   if (totalCredits === 0) return 0
-  const weighted = eligible.reduce((sum, record) => sum + scoreToGPA(record.totalScore, scale) * record.credit, 0)
+  const weighted = eligible.reduce((sum, record) => sum + gpaPoint(record, scale) * record.credit, 0)
   return round2(weighted / totalCredits)
 }
 
@@ -333,6 +341,7 @@ export async function getCourseGradeRecords(studentId: string): Promise<CourseGr
       regularScore: studentCourse.regularScore,
       finalScore: studentCourse.finalScore,
       totalScore,
+      gpa: studentCourse.gpa,
       examStatus,
       remediationStatus,
       status: studentCourse.status,
@@ -425,7 +434,7 @@ export async function getStudentSemesterGPAs(studentId: string): Promise<Semeste
       const totalCredits = eligible.reduce((sum, record) => sum + record.credit, 0)
       const gpa = totalCredits === 0
         ? 0
-        : round2(eligible.reduce((sum, record) => sum + scoreToGPA(record.totalScore, 'four') * record.credit, 0) / totalCredits)
+        : round2(eligible.reduce((sum, record) => sum + gpaPoint(record, 'four') * record.credit, 0) / totalCredits)
       return {
         key,
         academicYear: list[0].academicYear,

@@ -135,7 +135,7 @@ export function GradeTable({ records }: { records: CourseGradeRecord[] }) {
               <div className="mt-0.5 text-xs text-blue-400">{record.creditRequirement}</div>
             </TableCell>
             <TableCell className="text-center">{record.credit}</TableCell>
-            <TableCell className="text-center">{formatGPA(scoreToGPA(record.totalScore, 'four'))}</TableCell>
+            <TableCell className="text-center">{formatGPA(record.gpa ?? scoreToGPA(record.totalScore, 'four'))}</TableCell>
             <TableCell className="text-center font-semibold">{record.totalScore ?? '-'}</TableCell>
           </TableRow>
         ))}

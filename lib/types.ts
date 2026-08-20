@@ -128,6 +128,7 @@ export interface StudentCourse {
   regularScore?: number
   finalScore?: number
   totalScore?: number
+  gpa?: number
   examStatus?: ExamStatus
   remediationStatus?: RemediationStatus
 }
@@ -156,6 +157,7 @@ export interface CourseGradeRecord {
   regularScore?: number
   finalScore?: number
   totalScore?: number
+  gpa?: number
   examStatus: ExamStatus
   remediationStatus: RemediationStatus
   status: CourseStudyStatus

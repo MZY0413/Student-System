@@ -70,6 +70,7 @@ create table public.student_courses (
   regular_score numeric,
   final_score numeric,
   total_score numeric,
+  gpa numeric,
   exam_status text,
   remediation_status text,
   primary key (student_id, course_id)
