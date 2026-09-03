@@ -101,6 +101,11 @@ export const initialBasicProfiles: StudentBasicProfile[] = students.map(s => ({
   competitionExperience: defaultCompetitionExperience,
   campusLifeExperience: defaultCampusLifeExperience,
   strengths: '',
+  cet4Score: '',
+  cet6Score: '',
+  ieltsScore: '',
+  toeflScore: '',
+  englishVisible: true,
 }))
 
 export const assessmentIndicators: AssessmentIndicator[] = [

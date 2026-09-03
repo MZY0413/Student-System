@@ -30,6 +30,10 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
   const [researchExperience, setResearchExperience] = useState('')
   const [competitionExperience, setCompetitionExperience] = useState('')
   const [campusLifeExperience, setCampusLifeExperience] = useState('')
+  const [cet4Score, setCet4Score] = useState('')
+  const [cet6Score, setCet6Score] = useState('')
+  const [ieltsScore, setIeltsScore] = useState('')
+  const [toeflScore, setToeflScore] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -47,6 +51,10 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
       setResearchExperience(basic?.researchExperience || '')
       setCompetitionExperience(basic?.competitionExperience || '')
       setCampusLifeExperience(basic?.campusLifeExperience || '')
+      setCet4Score(basic?.cet4Score || '')
+      setCet6Score(basic?.cet6Score || '')
+      setIeltsScore(basic?.ieltsScore || '')
+      setToeflScore(basic?.toeflScore || '')
     })()
     return () => { cancelled = true }
   }, [studentId])
@@ -58,6 +66,13 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
       </div>
     )
   }
+
+  const englishSummary = [
+    cet4Score ? `四级 ${cet4Score}` : '',
+    cet6Score ? `六级 ${cet6Score}` : '',
+    ieltsScore ? `雅思 ${ieltsScore}` : '',
+    toeflScore ? `托福 ${toeflScore}` : '',
+  ].filter(Boolean).join(' · ')
 
   return (
     <div className="space-y-6">
@@ -82,6 +97,7 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
                   <ExperienceSection label="科研经历" text={researchExperience} />
                   <ExperienceSection label="竞赛经历" text={competitionExperience} />
                   <ExperienceSection label="校园生活经历" text={campusLifeExperience} />
+                  <ExperienceSection label="英语水平" text={englishSummary} />
                 </div>
               </div>
             </div>

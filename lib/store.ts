@@ -62,6 +62,11 @@ type BasicProfileRow = {
   competition_experience: string | null
   campus_life_experience: string | null
   strengths: string | null
+  cet4_score: string | null
+  cet6_score: string | null
+  ielts_score: string | null
+  toefl_score: string | null
+  english_visible: boolean | null
 }
 function mapBasicProfile(row: BasicProfileRow): StudentBasicProfile {
   return {
@@ -75,6 +80,11 @@ function mapBasicProfile(row: BasicProfileRow): StudentBasicProfile {
     competitionExperience: row.competition_experience ?? '',
     campusLifeExperience: row.campus_life_experience ?? '',
     strengths: row.strengths ?? '',
+    cet4Score: row.cet4_score ?? '',
+    cet6Score: row.cet6_score ?? '',
+    ieltsScore: row.ielts_score ?? '',
+    toeflScore: row.toefl_score ?? '',
+    englishVisible: row.english_visible ?? true,
   }
 }
 
@@ -261,6 +271,11 @@ export async function upsertBasicProfile(profile: StudentBasicProfile): Promise<
     competition_experience: profile.competitionExperience,
     campus_life_experience: profile.campusLifeExperience,
     strengths: profile.strengths,
+    cet4_score: profile.cet4Score,
+    cet6_score: profile.cet6Score,
+    ielts_score: profile.ieltsScore,
+    toefl_score: profile.toeflScore,
+    english_visible: profile.englishVisible,
   }
   const { error } = await supabase.from('basic_profiles').upsert(row)
   if (error) console.error('upsertBasicProfile 失败:', error.message)

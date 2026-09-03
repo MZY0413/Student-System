@@ -37,6 +37,11 @@ export interface StudentBasicProfile {
   competitionExperience: string
   campusLifeExperience: string
   strengths: string
+  cet4Score: string
+  cet6Score: string
+  ieltsScore: string
+  toeflScore: string
+  englishVisible: boolean
 }
 
 // 项目经历

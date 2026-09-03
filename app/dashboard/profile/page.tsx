@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 
 const genderOptions: Gender[] = ['男', '女', '保密']
 
@@ -39,6 +40,11 @@ function buildDefaultProfile(userId: string, name: string): StudentBasicProfile 
     competitionExperience: '',
     campusLifeExperience: '',
     strengths: '',
+    cet4Score: '',
+    cet6Score: '',
+    ieltsScore: '',
+    toeflScore: '',
+    englishVisible: true,
   }
 }
 
@@ -91,6 +97,9 @@ export default function ProfilePage() {
   const classmates = useMemo(() => allUsers.filter(item => item.role === 'student' && item.id !== userId), [allUsers, userId])
 
   if (isLoading || !user || !profile) return null
+
+  const isTeacher = user.role === 'teacher'
+  const showEnglish = canEdit || isTeacher || profile.englishVisible
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -166,6 +175,68 @@ export default function ProfilePage() {
             />
           </div>
         </CardContent>
+
+        {/* 英语水平（可隐藏/公开，隐藏后同学不可见、老师仍可见） */}
+        {showEnglish && (
+          <CardContent className="space-y-4 border-t pt-6">
+            <div className="flex items-center justify-between">
+              <Label className="text-base">英语水平</Label>
+              {canEdit && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {profile.englishVisible ? '公开' : '隐藏'}
+                  </span>
+                  <Switch
+                    checked={profile.englishVisible}
+                    onCheckedChange={(checked) => setProfile(p => (p ? { ...p, englishVisible: checked } : p))}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="cet4Score">四级</Label>
+                <Input
+                  id="cet4Score"
+                  placeholder="如 500"
+                  value={profile.cet4Score}
+                  onChange={(e) => setProfile(p => (p ? { ...p, cet4Score: e.target.value } : p))}
+                  disabled={!canEdit}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cet6Score">六级</Label>
+                <Input
+                  id="cet6Score"
+                  placeholder="如 425"
+                  value={profile.cet6Score}
+                  onChange={(e) => setProfile(p => (p ? { ...p, cet6Score: e.target.value } : p))}
+                  disabled={!canEdit}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ieltsScore">雅思</Label>
+                <Input
+                  id="ieltsScore"
+                  placeholder="如 6.5"
+                  value={profile.ieltsScore}
+                  onChange={(e) => setProfile(p => (p ? { ...p, ieltsScore: e.target.value } : p))}
+                  disabled={!canEdit}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="toeflScore">托福</Label>
+                <Input
+                  id="toeflScore"
+                  placeholder="如 90"
+                  value={profile.toeflScore}
+                  onChange={(e) => setProfile(p => (p ? { ...p, toeflScore: e.target.value } : p))}
+                  disabled={!canEdit}
+                />
+              </div>
+            </div>
+          </CardContent>
+        )}
 
         {/* 基本资料（紧凑） */}
         <CardContent className="grid gap-4 sm:grid-cols-3">

@@ -88,6 +88,11 @@ async function main() {
     competition_experience: p.competitionExperience,
     campus_life_experience: p.campusLifeExperience,
     strengths: p.strengths,
+    cet4_score: p.cet4Score,
+    cet6_score: p.cet6Score,
+    ielts_score: p.ieltsScore,
+    toefl_score: p.toeflScore,
+    english_visible: p.englishVisible,
   })))
 
   await upsert('student_profiles', initialProfiles.map(p => ({

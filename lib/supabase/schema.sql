@@ -34,7 +34,12 @@ create table public.basic_profiles (
   research_experience text,
   competition_experience text,
   campus_life_experience text,
-  strengths text
+  strengths text,
+  cet4_score text,
+  cet6_score text,
+  ielts_score text,
+  toefl_score text,
+  english_visible boolean not null default true
 );
 
 -- 学生画像（项目经历等）
