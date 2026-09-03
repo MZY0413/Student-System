@@ -12,17 +12,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  BookOpen,
   CalendarDays,
   GraduationCap,
   LineChart,
   ListChecks,
-  TrendingUp,
 } from 'lucide-react'
 import {
   calculateGPA,
   getCourseGradeRecords,
-  getCreditAnalysis,
   getAllSemesters,
   getCurrentSemesterKey,
   getSemesterRanking,
@@ -31,7 +28,6 @@ import {
 } from '@/lib/store'
 import type {
   CourseGradeRecord,
-  CreditAnalysis,
   GPASummary,
   RankingLeaderboardEntry,
   SemesterGPA,
@@ -55,7 +51,6 @@ export default function TeacherGpaPage() {
   const [selectedStudentId, setSelectedStudentId] = useState('')
   const [records, setRecords] = useState<CourseGradeRecord[]>([])
   const [gpa, setGpa] = useState<GPASummary | null>(null)
-  const [credit, setCredit] = useState<CreditAnalysis | null>(null)
   const [semesterGPAs, setSemesterGPAs] = useState<SemesterGPA[]>([])
   const [semesters, setSemesters] = useState<{ key: string; academicYear: string; semester: string }[]>([])
   const [rankSemester, setRankSemester] = useState('')
@@ -90,16 +85,14 @@ export default function TeacherGpaPage() {
     if (user?.role !== 'teacher' || !selectedStudentId) return
     let cancelled = false
     ;(async () => {
-      const [records, gpa, credit, semesterGPAs] = await Promise.all([
+      const [records, gpa, semesterGPAs] = await Promise.all([
         getCourseGradeRecords(selectedStudentId),
         calculateGPA(selectedStudentId, 'four'),
-        getCreditAnalysis(selectedStudentId),
         getStudentSemesterGPAs(selectedStudentId),
       ])
       if (cancelled) return
       setRecords(records)
       setGpa(gpa)
-      setCredit(credit)
       setSemesterGPAs(semesterGPAs)
     })()
     return () => { cancelled = true }
@@ -141,9 +134,6 @@ export default function TeacherGpaPage() {
 
   const countedCourses = passedRecords.length
   const completedSemesters = new Set(passedRecords.map(record => `${record.academicYear}-${record.semester}`)).size
-  const completionPercent = credit && credit.graduationRequiredCredits > 0
-    ? Math.min(Math.round((credit.completedCredits / credit.graduationRequiredCredits) * 100), 100)
-    : 0
 
   const highest = scoredRecords.reduce<CourseGradeRecord | null>(
     (max, record) => (!max || (record.totalScore ?? 0) > (max.totalScore ?? 0) ? record : max),
@@ -162,7 +152,7 @@ export default function TeacherGpaPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">学生绩点</h1>
-          <p className="text-muted-foreground">查看任一学生的各学期绩点与班级绩点排名</p>
+          <p className="text-muted-foreground">查看任一学生的各学期成绩与班级平均成绩排名</p>
         </div>
         <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
           <SelectTrigger className="w-full sm:w-56">
@@ -177,17 +167,13 @@ export default function TeacherGpaPage() {
       </div>
 
       {/* 选中学生成绩概况 */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <MetricCard icon={GraduationCap} label="总 GPA" value={formatGPA(gpa?.cumulativeGPA)} />
-        <MetricCard icon={BookOpen} label="已修学分" value={`${credit?.completedCredits ?? 0}`} />
-      </div>
+      <MetricCard icon={GraduationCap} label="总 GPA" value={formatGPA(gpa?.cumulativeGPA)} />
 
       <Card>
         <CardContent className="space-y-6 pt-6">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <InlineMetric icon={ListChecks} value={countedCourses} label="计入课程数量" />
             <InlineMetric icon={CalendarDays} value={completedSemesters} label="已修学期" />
-            <InlineMetric icon={TrendingUp} value={`${completionPercent}%`} label="学业完成百分比" />
           </div>
           <div className="space-y-2 border-t border-border pt-4 text-sm">
             <div className="flex items-center justify-between gap-3">
@@ -234,7 +220,7 @@ export default function TeacherGpaPage() {
       <Card>
         <CardContent className="space-y-4 pt-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-sm font-semibold">班级绩点排名</span>
+            <span className="text-sm font-semibold">班级平均成绩排名</span>
             <Select value={rankSemester} onValueChange={setRankSemester}>
               <SelectTrigger className="w-full sm:w-64">
                 <SelectValue placeholder="选择学期" />

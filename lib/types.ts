@@ -188,18 +188,18 @@ export interface AcademicRankings {
 export interface RankingLeaderboardEntry {
   studentId: string
   studentName: string
-  gpa: number
+  averageScore: number
   date: string
 }
 
 export interface RankingLeaderboard {
   entries: RankingLeaderboardEntry[]
   myRank: number
-  myGPA: number
+  myScore: number
   total: number
-  highestGPA: number
-  lowestGPA: number
-  averageGPA: number
+  highestScore: number
+  lowestScore: number
+  averageScore: number
   percentAbove: number
 }
 
@@ -569,7 +569,7 @@ export interface StudentContribution {
 // 班级学情统计
 export interface ClassStats {
   totalStudents: number
-  averageGPA: number
+  averageScore: number
   completionRate: number
   passRate: number
 }

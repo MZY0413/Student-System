@@ -115,14 +115,13 @@ export function RankBadge({ rank }: { rank: number }) {
   )
 }
 
-// ── 成绩表格（学分 / 绩点 / 分数） ─────────────────────────────
+// ── 成绩表格（绩点 / 分数） ───────────────────────────────────
 export function GradeTable({ records }: { records: CourseGradeRecord[] }) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>课程名称</TableHead>
-          <TableHead className="text-center">学分</TableHead>
           <TableHead className="text-center">绩点</TableHead>
           <TableHead className="text-center">分数</TableHead>
         </TableRow>
@@ -134,7 +133,6 @@ export function GradeTable({ records }: { records: CourseGradeRecord[] }) {
               <div className="font-medium">{record.courseName}</div>
               <div className="mt-0.5 text-xs text-blue-400">{record.creditRequirement}</div>
             </TableCell>
-            <TableCell className="text-center">{record.credit}</TableCell>
             <TableCell className="text-center">{formatGPA(record.gpa ?? scoreToGPA(record.totalScore, 'four'))}</TableCell>
             <TableCell className="text-center font-semibold">{record.totalScore ?? '-'}</TableCell>
           </TableRow>
@@ -145,9 +143,9 @@ export function GradeTable({ records }: { records: CourseGradeRecord[] }) {
 }
 
 // ── 我的排名（学生端） ────────────────────────────────────────
-export function MyRankCard({ myRank, myGPA, total, percentAbove }: {
+export function MyRankCard({ myRank, myScore, total, percentAbove }: {
   myRank: number
-  myGPA: number
+  myScore: number
   total: number
   percentAbove: number
 }) {
@@ -164,8 +162,8 @@ export function MyRankCard({ myRank, myGPA, total, percentAbove }: {
             <span className="ml-1 text-sm text-muted-foreground">/ {total || '-'}</span>
           </div>
           <div className="rounded-lg border border-border bg-card/60 px-4 py-2 text-right">
-            <p className="text-xs text-muted-foreground">学期平均绩点</p>
-            <p className="text-2xl font-bold text-foreground">{formatGPA(myGPA)}</p>
+            <p className="text-xs text-muted-foreground">学期平均成绩</p>
+            <p className="text-2xl font-bold text-foreground">{formatGPA(myScore)}</p>
           </div>
         </div>
         <div>
@@ -192,22 +190,22 @@ export function RankingBoard({
   studentId?: string
   anonymous?: boolean
 }) {
-  const [sortMode, setSortMode] = useState<'rank' | 'gpa'>('rank')
+  const [sortMode, setSortMode] = useState<'rank' | 'score'>('rank')
 
-  const sorted = [...entries].sort((a, b) => b.gpa - a.gpa || a.studentName.localeCompare(b.studentName))
-  const valid = sorted.map(entry => entry.gpa).filter(gpa => gpa > 0)
+  const sorted = [...entries].sort((a, b) => b.averageScore - a.averageScore || a.studentName.localeCompare(b.studentName))
+  const valid = sorted.map(entry => entry.averageScore).filter(score => score > 0)
   const total = sorted.length
-  const highestGPA = valid.length ? Math.max(...valid) : 0
-  const lowestGPA = valid.length ? Math.min(...valid) : 0
-  const averageGPA = valid.length ? Math.round((valid.reduce((sum, gpa) => sum + gpa, 0) / valid.length) * 100) / 100 : 0
+  const highestScore = valid.length ? Math.max(...valid) : 0
+  const lowestScore = valid.length ? Math.min(...valid) : 0
+  const averageScore = valid.length ? Math.round((valid.reduce((sum, score) => sum + score, 0) / valid.length) * 100) / 100 : 0
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <RankStatCard icon={Users} value={`${total}`} label="参与" />
-        <RankStatCard icon={ArrowUp} value={formatGPA(highestGPA)} label="最高" valueClassName="text-success" />
-        <RankStatCard icon={BarChart3} value={formatGPA(averageGPA)} label="平均" valueClassName="text-warning" />
-        <RankStatCard icon={ArrowDown} value={formatGPA(lowestGPA)} label="最低" valueClassName="text-destructive" />
+        <RankStatCard icon={ArrowUp} value={formatGPA(highestScore)} label="最高" valueClassName="text-success" />
+        <RankStatCard icon={BarChart3} value={formatGPA(averageScore)} label="平均" valueClassName="text-warning" />
+        <RankStatCard icon={ArrowDown} value={formatGPA(lowestScore)} label="最低" valueClassName="text-destructive" />
       </div>
 
       <div className="flex items-center justify-between">
@@ -225,13 +223,13 @@ export function RankingBoard({
           </button>
           <button
             type="button"
-            onClick={() => setSortMode('gpa')}
+            onClick={() => setSortMode('score')}
             className={cn(
               'rounded-md px-3 py-1 text-sm transition-colors',
-              sortMode === 'gpa' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              sortMode === 'score' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            绩点
+            成绩
           </button>
         </div>
       </div>
@@ -258,7 +256,7 @@ export function RankingBoard({
                     </span>
                   )}
                 </div>
-                <span className="text-lg font-bold text-foreground">{formatGPA(entry.gpa)}</span>
+                <span className="text-lg font-bold text-foreground">{formatGPA(entry.averageScore)}</span>
               </div>
               <span className="shrink-0 text-xs text-muted-foreground">{entry.date}</span>
             </div>

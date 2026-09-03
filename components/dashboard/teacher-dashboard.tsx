@@ -5,14 +5,14 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { getUsers, getClassStats, calculateGPA } from '@/lib/store'
+import { getUsers, getClassStats, getSemesterRanking, getCurrentSemesterKey } from '@/lib/store'
 import type { User, ClassStats } from '@/lib/types'
 import { Users, GraduationCap, ArrowRight } from 'lucide-react'
 
 export default function TeacherDashboard() {
   const [students, setStudents] = useState<User[]>([])
   const [classStats, setClassStats] = useState<ClassStats | null>(null)
-  const [studentGPAs, setStudentGPAs] = useState<Record<string, number>>({})
+  const [studentScores, setStudentScores] = useState<Record<string, number>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -22,13 +22,11 @@ export default function TeacherDashboard() {
       if (cancelled) return
       setStudents(studentUsers)
 
-      const gpas: Record<string, number> = {}
-      for (const student of studentUsers) {
-        const { cumulativeGPA } = await calculateGPA(student.id, 'four')
-        gpas[student.id] = cumulativeGPA
-      }
-      if (!cancelled) return
-      setStudentGPAs(gpas)
+      const ranking = await getSemesterRanking(getCurrentSemesterKey())
+      const scores: Record<string, number> = {}
+      for (const entry of ranking) scores[entry.studentId] = entry.averageScore
+      if (cancelled) return
+      setStudentScores(scores)
 
       setClassStats(await getClassStats())
     })()
@@ -69,7 +67,7 @@ export default function TeacherDashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">平均成绩</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {classStats?.averageGPA || 0}
+                  {classStats?.averageScore ?? 0}
                 </p>
               </div>
             </div>
@@ -111,8 +109,8 @@ export default function TeacherDashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-foreground">{(studentGPAs[student.id] || 0).toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground">平均GPA</p>
+                  <p className="font-semibold text-foreground">{(studentScores[student.id] || 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">平均成绩</p>
                 </div>
               </Link>
             ))}

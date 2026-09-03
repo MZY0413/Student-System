@@ -12,18 +12,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  BookOpen,
   CalendarDays,
   GraduationCap,
   LineChart,
   ListChecks,
   Search,
-  TrendingUp,
 } from 'lucide-react'
 import {
   calculateGPA,
   getCourseGradeRecords,
-  getCreditAnalysis,
   getAllSemesters,
   getCurrentSemesterKey,
   getRankingLeaderboard,
@@ -31,7 +28,6 @@ import {
 } from '@/lib/store'
 import type {
   CourseGradeRecord,
-  CreditAnalysis,
   GPASummary,
   RankingLeaderboard,
   SemesterGPA,
@@ -50,7 +46,6 @@ export default function GradesPage() {
   const { user } = useAuth()
   const [records, setRecords] = useState<CourseGradeRecord[]>([])
   const [gpa, setGpa] = useState<GPASummary | null>(null)
-  const [credit, setCredit] = useState<CreditAnalysis | null>(null)
   const [semesterGPAs, setSemesterGPAs] = useState<SemesterGPA[]>([])
   const [semesters, setSemesters] = useState<{ key: string; academicYear: string; semester: string }[]>([])
   const [selectedSemester, setSelectedSemester] = useState('')
@@ -62,17 +57,15 @@ export default function GradesPage() {
     if (user?.role !== 'student') return
     let cancelled = false
     ;(async () => {
-      const [records, gpa, credit, semesterGPAs, all] = await Promise.all([
+      const [records, gpa, semesterGPAs, all] = await Promise.all([
         getCourseGradeRecords(user.id),
         calculateGPA(user.id, 'four'),
-        getCreditAnalysis(user.id),
         getStudentSemesterGPAs(user.id),
         getAllSemesters(),
       ])
       if (cancelled) return
       setRecords(records)
       setGpa(gpa)
-      setCredit(credit)
       setSemesterGPAs(semesterGPAs)
       setSemesters(all)
       const currentKey = getCurrentSemesterKey()
@@ -118,9 +111,6 @@ export default function GradesPage() {
 
   const countedCourses = passedRecords.length
   const completedSemesters = new Set(passedRecords.map(record => `${record.academicYear}-${record.semester}`)).size
-  const completionPercent = credit && credit.graduationRequiredCredits > 0
-    ? Math.min(Math.round((credit.completedCredits / credit.graduationRequiredCredits) * 100), 100)
-    : 0
 
   const highest = scoredRecords.reduce<CourseGradeRecord | null>(
     (max, record) => (!max || (record.totalScore ?? 0) > (max.totalScore ?? 0) ? record : max),
@@ -157,18 +147,14 @@ export default function GradesPage() {
       </div>
 
       {/* 顶部统计卡片 */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <MetricCard icon={GraduationCap} label="总 GPA" value={formatGPA(gpa?.cumulativeGPA)} />
-        <MetricCard icon={BookOpen} label="已修学分" value={`${credit?.completedCredits ?? 0}`} />
-      </div>
+      <MetricCard icon={GraduationCap} label="总 GPA" value={formatGPA(gpa?.cumulativeGPA)} />
 
       {/* 大圆角容器：三栏指标 + 最高/最低分 */}
       <Card>
         <CardContent className="space-y-6 pt-6">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <InlineMetric icon={ListChecks} value={countedCourses} label="计入课程数量" />
             <InlineMetric icon={CalendarDays} value={completedSemesters} label="已修学期" />
-            <InlineMetric icon={TrendingUp} value={`${completionPercent}%`} label="学业完成百分比" />
           </div>
           <div className="space-y-2 border-t border-border pt-4 text-sm">
             <div className="flex items-center justify-between gap-3">
@@ -238,7 +224,7 @@ export default function GradesPage() {
           </div>
           <MyRankCard
             myRank={leaderboard.myRank}
-            myGPA={leaderboard.myGPA}
+            myScore={leaderboard.myScore}
             total={leaderboard.total}
             percentAbove={leaderboard.percentAbove}
           />

@@ -22,7 +22,7 @@ import type {
 } from './types'
 
 const CURRENT_ACADEMIC_YEAR = '2025-2026学年'
-const CURRENT_SEMESTER = '第二学期'
+const CURRENT_SEMESTER = '第一学期'
 const GRADUATION_REQUIRED_CREDITS = 185
 const REQUIRED_TARGET_CREDITS = 145
 const ELECTIVE_TARGET_CREDITS = 40
@@ -155,6 +155,13 @@ function mapStudentCourse(row: StudentCourseRow): StudentCourse {
     examStatus: row.exam_status ?? undefined,
     remediationStatus: row.remediation_status ?? undefined,
   }
+}
+
+type SemesterAverageRow = {
+  student_id: string
+  academic_year: string
+  semester: string
+  average_score: number | null
 }
 
 // ── 鉴权（Supabase Auth：邮箱+密码，密码哈希存于 auth.users） ──
@@ -465,17 +472,34 @@ export async function getAllSemesters(): Promise<{ key: string; academicYear: st
   return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key))
 }
 
+function parseSemesterKey(key: string): { academicYear: string; semester: string } {
+  const idx = key.lastIndexOf('-')
+  return { academicYear: key.slice(0, idx), semester: key.slice(idx + 1) }
+}
+
 export async function getSemesterRanking(semesterKey: string): Promise<RankingLeaderboardEntry[]> {
-  const users = await getUsers()
-  const students = users.filter(u => u.role === 'student')
+  const { academicYear, semester } = parseSemesterKey(semesterKey)
+  const [{ data, error }, users] = await Promise.all([
+    supabase
+      .from('semester_averages')
+      .select('student_id, average_score')
+      .eq('academic_year', academicYear)
+      .eq('semester', semester),
+    getUsers(),
+  ])
+  if (error) return []
+  const nameMap = new Map(users.map(u => [u.id, u.name]))
   const date = new Date().toISOString().split('T')[0]
 
-  const entries: RankingLeaderboardEntry[] = []
-  for (const student of students) {
-    const sgpa = (await getStudentSemesterGPAs(student.id)).find(item => item.key === semesterKey)
-    entries.push({ studentId: student.id, studentName: student.name, gpa: sgpa?.gpa ?? 0, date })
-  }
-  return entries.sort((a, b) => b.gpa - a.gpa || a.studentName.localeCompare(b.studentName))
+  return (data as SemesterAverageRow[])
+    .filter(row => nameMap.has(row.student_id))
+    .map(row => ({
+      studentId: row.student_id,
+      studentName: nameMap.get(row.student_id)!,
+      averageScore: row.average_score ?? 0,
+      date,
+    }))
+    .sort((a, b) => b.averageScore - a.averageScore || a.studentName.localeCompare(b.studentName))
 }
 
 export async function getRankingLeaderboard(studentId: string, semesterKey?: string): Promise<RankingLeaderboard> {
@@ -484,29 +508,33 @@ export async function getRankingLeaderboard(studentId: string, semesterKey?: str
 
   const myIndex = entries.findIndex(entry => entry.studentId === studentId)
   const myRank = myIndex >= 0 ? myIndex + 1 : 0
-  const myGPA = myIndex >= 0 ? entries[myIndex].gpa : 0
+  const myScore = myIndex >= 0 ? entries[myIndex].averageScore : 0
   const total = entries.length
 
-  const validGPAs = entries.map(entry => entry.gpa).filter(gpa => gpa > 0)
-  const highestGPA = validGPAs.length ? Math.max(...validGPAs) : 0
-  const lowestGPA = validGPAs.length ? Math.min(...validGPAs) : 0
-  const averageGPA = validGPAs.length ? round2(validGPAs.reduce((sum, gpa) => sum + gpa, 0) / validGPAs.length) : 0
+  const validScores = entries.map(entry => entry.averageScore).filter(score => score > 0)
+  const highestScore = validScores.length ? Math.max(...validScores) : 0
+  const lowestScore = validScores.length ? Math.min(...validScores) : 0
+  const averageScore = validScores.length ? round2(validScores.reduce((sum, score) => sum + score, 0) / validScores.length) : 0
 
   const percentAbove = total > 1 && myRank > 0
     ? Math.round(((total - myRank) / (total - 1)) * 100)
     : myRank === 1 && total > 0 ? 100 : 0
 
-  return { entries, myRank, myGPA, total, highestGPA, lowestGPA, averageGPA, percentAbove }
+  return { entries, myRank, myScore, total, highestScore, lowestScore, averageScore, percentAbove }
 }
 
 export async function getClassStats(): Promise<ClassStats> {
   const users = await getUsers()
-  const students = users.filter(u => u.role === 'student')
-  const totalStudents = students.length
-  let totalGPA = 0
-  for (const student of students) {
-    totalGPA += (await calculateGPA(student.id, 'four')).cumulativeGPA
-  }
-  const averageGPA = totalStudents > 0 ? round2(totalGPA / totalStudents) : 0
-  return { totalStudents, averageGPA, completionRate: 0, passRate: 0 }
+  const totalStudents = users.filter(u => u.role === 'student').length
+  const { data, error } = await supabase
+    .from('semester_averages')
+    .select('average_score')
+    .eq('academic_year', CURRENT_ACADEMIC_YEAR)
+    .eq('semester', CURRENT_SEMESTER)
+  if (error) return { totalStudents, averageScore: 0, completionRate: 0, passRate: 0 }
+  const scores = (data as { average_score: number | null }[])
+    .map(row => row.average_score ?? 0)
+    .filter(score => score > 0)
+  const averageScore = scores.length ? round2(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0
+  return { totalStudents, averageScore, completionRate: 0, passRate: 0 }
 }

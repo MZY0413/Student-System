@@ -4,6 +4,7 @@
 -- ============================================================
 
 -- 清理旧表（可重复执行）
+drop table if exists public.semester_averages;
 drop table if exists public.student_courses;
 drop table if exists public.student_profiles;
 drop table if exists public.basic_profiles;
@@ -78,6 +79,15 @@ create table public.student_courses (
   primary key (student_id, course_id)
 );
 
+-- 学期平均成绩（用于按平均成绩排名）
+create table public.semester_averages (
+  student_id uuid references public.users(id) on delete cascade,
+  academic_year text not null,
+  semester text not null,
+  average_score numeric,
+  primary key (student_id, academic_year, semester)
+);
+
 -- ============================================================
 -- 行级安全（RLS）：必须登录（authenticated）才能读写
 -- ============================================================
@@ -86,6 +96,7 @@ alter table public.basic_profiles enable row level security;
 alter table public.student_profiles enable row level security;
 alter table public.courses enable row level security;
 alter table public.student_courses enable row level security;
+alter table public.semester_averages enable row level security;
 
 -- 读取：允许所有已登录用户读取（学生/教师跨用户查看同学、排名等）
 create policy "authenticated read users" on public.users for select using (auth.role() = 'authenticated');
@@ -93,6 +104,7 @@ create policy "authenticated read basic_profiles" on public.basic_profiles for s
 create policy "authenticated read student_profiles" on public.student_profiles for select using (auth.role() = 'authenticated');
 create policy "authenticated read courses" on public.courses for select using (auth.role() = 'authenticated');
 create policy "authenticated read student_courses" on public.student_courses for select using (auth.role() = 'authenticated');
+create policy "authenticated read semester_averages" on public.semester_averages for select using (auth.role() = 'authenticated');
 
 -- 写入：仅本人可写基本资料
 create policy "own write basic_profiles" on public.basic_profiles for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
