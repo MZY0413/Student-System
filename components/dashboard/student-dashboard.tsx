@@ -12,11 +12,24 @@ interface StudentDashboardProps {
   studentId: string
 }
 
+function ExperienceSection({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="text-left">
+      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 whitespace-pre-line leading-relaxed text-foreground">
+        {text.trim() ? text : '暂未填写'}
+      </p>
+    </div>
+  )
+}
+
 export default function StudentDashboard({ studentId }: StudentDashboardProps) {
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [gpa, setGpa] = useState(0)
-  const [experiences, setExperiences] = useState('')
+  const [researchExperience, setResearchExperience] = useState('')
+  const [competitionExperience, setCompetitionExperience] = useState('')
+  const [campusLifeExperience, setCampusLifeExperience] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -31,7 +44,9 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
       setProfile(foundProfile || null)
       setUser(foundUser || null)
       setGpa(gpaData.cumulativeGPA)
-      setExperiences(basic?.experiences || '')
+      setResearchExperience(basic?.researchExperience || '')
+      setCompetitionExperience(basic?.competitionExperience || '')
+      setCampusLifeExperience(basic?.campusLifeExperience || '')
     })()
     return () => { cancelled = true }
   }, [studentId])
@@ -48,11 +63,11 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">个人画像</h1>
-        <p className="text-muted-foreground">查看学生的代表性经历与学业概况</p>
+        <p className="text-muted-foreground">查看学生的科研/竞赛/校园经历与学业概况</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* 个人信息 + 代表性经历 */}
+        {/* 个人信息 + 科研/竞赛/校园经历 */}
         <Card className="lg:col-span-2">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-4 sm:flex-row">
@@ -63,9 +78,11 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
               </Avatar>
               <div className="flex-1 text-center sm:text-left">
                 <h2 className="text-2xl font-bold text-foreground">{user.name}</h2>
-                <p className="mt-2 whitespace-pre-line leading-relaxed text-foreground">
-                  {experiences.trim() ? experiences : '暂未填写代表性经历'}
-                </p>
+                <div className="mt-3 space-y-3">
+                  <ExperienceSection label="科研经历" text={researchExperience} />
+                  <ExperienceSection label="竞赛经历" text={competitionExperience} />
+                  <ExperienceSection label="校园生活经历" text={campusLifeExperience} />
+                </div>
               </div>
             </div>
           </CardContent>

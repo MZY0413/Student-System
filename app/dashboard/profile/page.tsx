@@ -27,16 +27,6 @@ import {
 
 const genderOptions: Gender[] = ['男', '女', '保密']
 
-const experienceHints = [
-  '学科竞赛获奖情况',
-  '奖学金获得情况',
-  '项目参与和开发经历',
-  '志愿活动经历',
-  '学生工作经历',
-  '社团经历',
-  '论文软著专利发布情况',
-]
-
 function buildDefaultProfile(userId: string, name: string): StudentBasicProfile {
   return {
     userId,
@@ -45,7 +35,9 @@ function buildDefaultProfile(userId: string, name: string): StudentBasicProfile 
     grade: '',
     hometown: '',
     email: '',
-    experiences: '',
+    researchExperience: '',
+    competitionExperience: '',
+    campusLifeExperience: '',
     strengths: '',
   }
 }
@@ -56,7 +48,6 @@ export default function ProfilePage() {
   const searchParams = useSearchParams()
   const [profile, setProfile] = useState<StudentBasicProfile | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [hintOpen, setHintOpen] = useState(false)
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [basicProfiles, setBasicProfiles] = useState<StudentBasicProfile[]>([])
 
@@ -88,7 +79,7 @@ export default function ProfilePage() {
     ;(async () => {
       const stored = await getBasicProfileByUserId(userId)
       if (cancelled) return
-      // 合并默认值，兼容旧数据（旧字段 motto → experiences）
+      // 合并默认值，兼容旧数据
       setProfile(stored ? { ...buildDefaultProfile(userId, userName), ...stored } : buildDefaultProfile(userId, userName))
     })()
     return () => { cancelled = true }
@@ -136,38 +127,44 @@ export default function ProfilePage() {
           </div>
         </CardHeader>
 
-        {/* 代表性经历 —— 主体 */}
-        <CardContent>
-          <div className="flex items-baseline justify-between gap-2">
-            <div className="flex items-baseline gap-2">
-              <Label htmlFor="experiences" className="text-base">我的代表性经历</Label>
-              <span className="text-xs text-muted-foreground">让大家认识更全面的自己！</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setHintOpen(v => !v)}
-              className="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              不知道怎么写？
-            </button>
+        {/* 代表性经历 —— 主体（科研 / 竞赛 / 校园生活） */}
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="researchExperience" className="text-base">科研经历</Label>
+            <Textarea
+              id="researchExperience"
+              rows={3}
+              className="mt-2 min-h-20 text-base leading-relaxed"
+              placeholder="例如：和xxx同学（或者正在推进）完成xxx项目，获得xxx。或者参加大学生创新创业项目，正在推进项目xxxx"
+              value={profile.researchExperience}
+              onChange={(e) => setProfile(p => (p ? { ...p, researchExperience: e.target.value } : p))}
+              disabled={!canEdit}
+            />
           </div>
-          {hintOpen && (
-            <div className="mt-2 rounded-lg border border-border bg-muted/40 p-3">
-              <p className="text-xs font-medium text-foreground">可以从这些方面入手：</p>
-              <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-xs text-muted-foreground">
-                {experienceHints.map(hint => <li key={hint}>{hint}</li>)}
-              </ul>
-            </div>
-          )}
-          <Textarea
-            id="experiences"
-            rows={9}
-            className="mt-2 min-h-52 text-base leading-relaxed"
-            placeholder="例如：全国大学生数学建模竞赛省一等奖、校一等奖学金、参与「智能图像分类系统」项目开发、担任机器人社团负责人…"
-            value={profile.experiences}
-            onChange={(e) => setProfile(p => (p ? { ...p, experiences: e.target.value } : p))}
-            disabled={!canEdit}
-          />
+          <div>
+            <Label htmlFor="competitionExperience" className="text-base">竞赛经历</Label>
+            <Textarea
+              id="competitionExperience"
+              rows={3}
+              className="mt-2 min-h-20 text-base leading-relaxed"
+              placeholder="例如：获得全国大学生数学竞赛xxx奖，获得码蹄杯国赛xxx奖"
+              value={profile.competitionExperience}
+              onChange={(e) => setProfile(p => (p ? { ...p, competitionExperience: e.target.value } : p))}
+              disabled={!canEdit}
+            />
+          </div>
+          <div>
+            <Label htmlFor="campusLifeExperience" className="text-base">校园生活经历</Label>
+            <Textarea
+              id="campusLifeExperience"
+              rows={3}
+              className="mt-2 min-h-20 text-base leading-relaxed"
+              placeholder="例如：担任班级班长，参加xxx社团，加入xxx学校部门"
+              value={profile.campusLifeExperience}
+              onChange={(e) => setProfile(p => (p ? { ...p, campusLifeExperience: e.target.value } : p))}
+              disabled={!canEdit}
+            />
+          </div>
         </CardContent>
 
         {/* 基本资料（紧凑） */}
@@ -275,7 +272,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">
-                    {cp?.experiences?.trim() ? cp.experiences : '暂未填写代表性经历'}
+                    {cp?.researchExperience?.trim() || cp?.competitionExperience?.trim() || cp?.campusLifeExperience?.trim() || '暂未填写经历'}
                   </p>
                 </Link>
               )

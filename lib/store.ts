@@ -58,7 +58,9 @@ type BasicProfileRow = {
   grade: string | null
   hometown: string | null
   email: string | null
-  experiences: string | null
+  research_experience: string | null
+  competition_experience: string | null
+  campus_life_experience: string | null
   strengths: string | null
 }
 function mapBasicProfile(row: BasicProfileRow): StudentBasicProfile {
@@ -69,7 +71,9 @@ function mapBasicProfile(row: BasicProfileRow): StudentBasicProfile {
     grade: row.grade ?? '',
     hometown: row.hometown ?? '',
     email: row.email ?? '',
-    experiences: row.experiences ?? '',
+    researchExperience: row.research_experience ?? '',
+    competitionExperience: row.competition_experience ?? '',
+    campusLifeExperience: row.campus_life_experience ?? '',
     strengths: row.strengths ?? '',
   }
 }
@@ -246,7 +250,9 @@ export async function upsertBasicProfile(profile: StudentBasicProfile): Promise<
     grade: profile.grade,
     hometown: profile.hometown,
     email: profile.email,
-    experiences: profile.experiences,
+    research_experience: profile.researchExperience,
+    competition_experience: profile.competitionExperience,
+    campus_life_experience: profile.campusLifeExperience,
     strengths: profile.strengths,
   }
   const { error } = await supabase.from('basic_profiles').upsert(row)

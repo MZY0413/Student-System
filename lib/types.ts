@@ -33,7 +33,9 @@ export interface StudentBasicProfile {
   grade: string
   hometown: string
   email: string
-  experiences: string
+  researchExperience: string
+  competitionExperience: string
+  campusLifeExperience: string
   strengths: string
 }
 

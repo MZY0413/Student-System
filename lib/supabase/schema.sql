@@ -30,7 +30,9 @@ create table public.basic_profiles (
   grade text,
   hometown text,
   email text,
-  experiences text,
+  research_experience text,
+  competition_experience text,
+  campus_life_experience text,
   strengths text
 );
 

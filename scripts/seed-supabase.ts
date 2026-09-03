@@ -84,7 +84,9 @@ async function main() {
     grade: p.grade,
     hometown: p.hometown,
     email: p.email,
-    experiences: p.experiences,
+    research_experience: p.researchExperience,
+    competition_experience: p.competitionExperience,
+    campus_life_experience: p.campusLifeExperience,
     strengths: p.strengths,
   })))
 
