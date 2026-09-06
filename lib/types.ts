@@ -303,10 +303,16 @@ export interface CourseTreeNode {
 }
 
 // 学业建议
+export type AcademicAdviceType = 'success' | 'warning' | 'info'
+
 export interface AcademicAdvice {
   id: string
-  type: 'success' | 'warning' | 'info'
-  message: string
+  studentId: string
+  teacherId: string
+  teacherName: string
+  content: string
+  type: AcademicAdviceType
+  createdAt: string
 }
 
 // 问题反馈

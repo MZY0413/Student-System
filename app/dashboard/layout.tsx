@@ -21,6 +21,7 @@ import {
   GraduationCap,
   BarChart3,
   FileText,
+  MessageSquareQuote,
   ChevronDown,
   KeyRound,
   LogOut,
@@ -41,6 +42,7 @@ const studentNavGroups: NavGroup[] = [
     items: [
       { href: '/dashboard/grades', label: '成绩绩点', icon: GraduationCap },
       { href: '/dashboard/indicators', label: '考核指标', icon: FileText },
+      { href: '/dashboard/advice', label: '学业建议', icon: MessageSquareQuote },
     ],
   },
 ]

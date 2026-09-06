@@ -4,6 +4,7 @@
 -- ============================================================
 
 -- 清理旧表（可重复执行）
+drop table if exists public.academic_advice;
 drop table if exists public.semester_averages;
 drop table if exists public.student_courses;
 drop table if exists public.student_profiles;
@@ -93,6 +94,17 @@ create table public.semester_averages (
   primary key (student_id, academic_year, semester)
 );
 
+-- 学业建议（老师发给学生的建议）
+create table public.academic_advice (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references public.users(id) on delete cascade,
+  teacher_id uuid not null references public.users(id) on delete cascade,
+  teacher_name text,
+  content text not null,
+  type text not null default 'info' check (type in ('success', 'warning', 'info')),
+  created_at timestamptz not null default now()
+);
+
 -- ============================================================
 -- 行级安全（RLS）：必须登录（authenticated）才能读写
 -- ============================================================
@@ -102,6 +114,7 @@ alter table public.student_profiles enable row level security;
 alter table public.courses enable row level security;
 alter table public.student_courses enable row level security;
 alter table public.semester_averages enable row level security;
+alter table public.academic_advice enable row level security;
 
 -- 读取：允许所有已登录用户读取（学生/教师跨用户查看同学、排名等）
 create policy "authenticated read users" on public.users for select using (auth.role() = 'authenticated');
@@ -110,6 +123,15 @@ create policy "authenticated read student_profiles" on public.student_profiles f
 create policy "authenticated read courses" on public.courses for select using (auth.role() = 'authenticated');
 create policy "authenticated read student_courses" on public.student_courses for select using (auth.role() = 'authenticated');
 create policy "authenticated read semester_averages" on public.semester_averages for select using (auth.role() = 'authenticated');
+create policy "academic_advice read own or teacher" on public.academic_advice for select using (
+  auth.uid() = student_id
+  or exists (select 1 from public.users where id = auth.uid() and role = 'teacher')
+);
 
 -- 写入：仅本人可写基本资料
 create policy "own write basic_profiles" on public.basic_profiles for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 学业建议：仅老师可写入（发送给学生）
+create policy "teacher insert academic_advice" on public.academic_advice for insert with check (
+  exists (select 1 from public.users where id = auth.uid() and role = 'teacher')
+);

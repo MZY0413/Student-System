@@ -2,11 +2,31 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { getProfiles, getUsers, calculateGPA, getBasicProfileByUserId } from '@/lib/store'
-import type { StudentProfile, User } from '@/lib/types'
-import { Briefcase, TrendingUp, ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { useAuth } from '@/lib/auth-context'
+import { getProfiles, getUsers, calculateGPA, getBasicProfileByUserId, sendAcademicAdvice } from '@/lib/store'
+import type { StudentProfile, User, AcademicAdviceType } from '@/lib/types'
+import { Briefcase, TrendingUp, ArrowRight, MessageSquareQuote } from 'lucide-react'
 
 interface StudentDashboardProps {
   studentId: string
@@ -24,6 +44,7 @@ function ExperienceSection({ label, text }: { label: string; text: string }) {
 }
 
 export default function StudentDashboard({ studentId }: StudentDashboardProps) {
+  const { user: currentUser } = useAuth()
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [gpa, setGpa] = useState(0)
@@ -34,6 +55,10 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
   const [cet6Score, setCet6Score] = useState('')
   const [ieltsScore, setIeltsScore] = useState('')
   const [toeflScore, setToeflScore] = useState('')
+  const [adviceOpen, setAdviceOpen] = useState(false)
+  const [adviceContent, setAdviceContent] = useState('')
+  const [adviceType, setAdviceType] = useState<AcademicAdviceType>('info')
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -59,6 +84,31 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
     return () => { cancelled = true }
   }, [studentId])
 
+  const handleSendAdvice = async () => {
+    if (!currentUser) return
+    if (!adviceContent.trim()) {
+      toast.error('请输入建议内容')
+      return
+    }
+    setSubmitting(true)
+    const { error } = await sendAcademicAdvice({
+      studentId,
+      teacherId: currentUser.id,
+      teacherName: currentUser.name,
+      content: adviceContent.trim(),
+      type: adviceType,
+    })
+    setSubmitting(false)
+    if (error) {
+      toast.error(error)
+      return
+    }
+    toast.success('学业建议已发送')
+    setAdviceContent('')
+    setAdviceType('info')
+    setAdviceOpen(false)
+  }
+
   if (!profile || !user) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -76,9 +126,15 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">个人画像</h1>
-        <p className="text-muted-foreground">查看学生的科研/竞赛/校园经历与学业概况</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">个人画像</h1>
+          <p className="text-muted-foreground">查看学生的科研/竞赛/校园经历与学业概况</p>
+        </div>
+        <Button onClick={() => setAdviceOpen(true)}>
+          <MessageSquareQuote className="h-4 w-4" />
+          发送学业建议
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -153,6 +209,51 @@ export default function StudentDashboard({ studentId }: StudentDashboardProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* 发送学业建议对话框 */}
+      <Dialog open={adviceOpen} onOpenChange={setAdviceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>发送学业建议</DialogTitle>
+            <DialogDescription>
+              给 {user.name} 发送一条学业建议，学生将在「学业建议」中查看
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="advice-type">建议类型</Label>
+              <Select value={adviceType} onValueChange={(v) => setAdviceType(v as AcademicAdviceType)}>
+                <SelectTrigger id="advice-type" className="w-full">
+                  <SelectValue placeholder="选择类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="info">建议</SelectItem>
+                  <SelectItem value="success">表扬</SelectItem>
+                  <SelectItem value="warning">提醒</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="advice-content">建议内容</Label>
+              <Textarea
+                id="advice-content"
+                rows={5}
+                placeholder="请输入学业建议内容"
+                value={adviceContent}
+                onChange={(e) => setAdviceContent(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdviceOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSendAdvice} disabled={submitting}>
+              {submitting ? '发送中...' : '发送'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

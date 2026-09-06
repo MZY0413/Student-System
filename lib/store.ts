@@ -19,6 +19,8 @@ import type {
   ExamStatus,
   RemediationStatus,
   GPAScale,
+  AcademicAdvice,
+  AcademicAdviceType,
 } from './types'
 
 const CURRENT_ACADEMIC_YEAR = '2025-2026学年'
@@ -174,6 +176,27 @@ type SemesterAverageRow = {
   average_score: number | null
 }
 
+type AcademicAdviceRow = {
+  id: string
+  student_id: string
+  teacher_id: string
+  teacher_name: string | null
+  content: string
+  type: AcademicAdviceType
+  created_at: string
+}
+function mapAcademicAdvice(row: AcademicAdviceRow): AcademicAdvice {
+  return {
+    id: row.id,
+    studentId: row.student_id,
+    teacherId: row.teacher_id,
+    teacherName: row.teacher_name ?? '',
+    content: row.content,
+    type: row.type,
+    createdAt: row.created_at,
+  }
+}
+
 // ── 鉴权（Supabase Auth：邮箱+密码，密码哈希存于 auth.users） ──
 export async function getUserByAuthId(authId: string): Promise<User | null> {
   const { data, error } = await supabase.from('users').select('*').eq('id', authId).maybeSingle()
@@ -256,6 +279,34 @@ export async function getStudentCoursesByStudentId(studentId: string): Promise<S
     .eq('student_id', studentId)
   if (error) return []
   return (data as StudentCourseRow[]).map(mapStudentCourse)
+}
+
+// ── 学业建议 ──────────────────────────────────────────────────
+export async function getAcademicAdvice(studentId: string): Promise<AcademicAdvice[]> {
+  const { data, error } = await supabase
+    .from('academic_advice')
+    .select('*')
+    .eq('student_id', studentId)
+    .order('created_at', { ascending: false })
+  if (error) return []
+  return (data as AcademicAdviceRow[]).map(mapAcademicAdvice)
+}
+
+export async function sendAcademicAdvice(input: {
+  studentId: string
+  teacherId: string
+  teacherName: string
+  content: string
+  type: AcademicAdviceType
+}): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('academic_advice').insert({
+    student_id: input.studentId,
+    teacher_id: input.teacherId,
+    teacher_name: input.teacherName,
+    content: input.content,
+    type: input.type,
+  })
+  return { error: error?.message ?? null }
 }
 
 // ── 写 ────────────────────────────────────────────────────────
