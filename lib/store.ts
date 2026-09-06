@@ -295,16 +295,11 @@ export function scoreToGPA(score: number | undefined, scale: GPAScale = 'four'):
     if (score >= 60) return 2
     return 0
   }
-  if (score >= 90) return 4
-  if (score >= 85) return 3.7
-  if (score >= 82) return 3.3
-  if (score >= 78) return 3
-  if (score >= 75) return 2.7
-  if (score >= 72) return 2.3
-  if (score >= 68) return 2
-  if (score >= 64) return 1.5
-  if (score >= 60) return 1
-  return 0
+  // 中国传媒大学（北京大学算法）：单门 GPA = 4 − 3(100−X)²/1600（60≤X≤100），60 分以下为 0
+  if (score >= 100) return 4
+  if (score < 60) return 0
+  const gpa = 4 - (3 * Math.pow(100 - score, 2)) / 1600
+  return Math.round(gpa * 100) / 100
 }
 
 export function getCurrentSemesterKey(): string {
@@ -404,15 +399,10 @@ export async function calculateGPA(studentId: string, scale: GPAScale = 'four'):
     totalCredits: yearlyData[year].records.filter(isPassedGrade).reduce((sum, record) => sum + record.credit, 0),
   }))
 
-  const totalGPA = weightedGPA(records, scale)
-  const currentTermGPA = weightedGPA(
-    records.filter(record => record.academicYear === CURRENT_ACADEMIC_YEAR && record.semester === CURRENT_SEMESTER),
-    scale
-  )
-  const academicYearGPA = weightedGPA(
-    records.filter(record => record.academicYear === CURRENT_ACADEMIC_YEAR),
-    scale
-  )
+  // 总绩点统一固定为 4.0（实验班），不再按学分加权计算
+  const totalGPA = 4
+  const currentTermGPA = 4
+  const academicYearGPA = 4
   const passedCredits = records.filter(isPassedGrade).reduce((sum, record) => sum + record.credit, 0)
 
   return {
