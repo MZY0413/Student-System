@@ -11,7 +11,9 @@
     "apply:schema": "tsx scripts/apply-schema.ts",
     "import:grades": "tsx scripts/import-grades.ts",
     "import:averages": "tsx scripts/import-semester-averages.ts",
-    "import:all-grades": "tsx scripts/import-all-grades.ts"
+    "import:all-grades": "tsx scripts/import-all-grades.ts",
+    "import:semester2": "tsx scripts/import-semester2-grades.ts",
+    "update:teachers": "tsx scripts/update-teachers.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

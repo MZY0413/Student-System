@@ -143,18 +143,20 @@ export function GradeTable({ records }: { records: CourseGradeRecord[] }) {
 }
 
 // ── 我的排名（学生端） ────────────────────────────────────────
-export function MyRankCard({ myRank, myScore, total, percentAbove }: {
+export function MyRankCard({ myRank, myScore, total, percentAbove, title = '我的排名', scoreLabel = '学期平均成绩' }: {
   myRank: number
   myScore: number
   total: number
   percentAbove: number
+  title?: string
+  scoreLabel?: string
 }) {
   return (
     <Card className="border-blue-500/25 bg-blue-500/10">
       <CardContent className="space-y-5 pt-6">
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-blue-400" />
-          <span className="font-semibold">我的排名</span>
+          <span className="font-semibold">{title}</span>
         </div>
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -162,7 +164,7 @@ export function MyRankCard({ myRank, myScore, total, percentAbove }: {
             <span className="ml-1 text-sm text-muted-foreground">/ {total || '-'}</span>
           </div>
           <div className="rounded-lg border border-border bg-card/60 px-4 py-2 text-right">
-            <p className="text-xs text-muted-foreground">学期平均成绩</p>
+            <p className="text-xs text-muted-foreground">{scoreLabel}</p>
             <p className="text-2xl font-bold text-foreground">{formatGPA(myScore)}</p>
           </div>
         </div>
@@ -185,10 +187,12 @@ export function RankingBoard({
   entries,
   studentId,
   anonymous,
+  scoreLabel = '成绩',
 }: {
   entries: RankingLeaderboardEntry[]
   studentId?: string
   anonymous?: boolean
+  scoreLabel?: string
 }) {
   const [sortMode, setSortMode] = useState<'rank' | 'score'>('rank')
 
@@ -229,7 +233,7 @@ export function RankingBoard({
               sortMode === 'score' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            成绩
+            {scoreLabel}
           </button>
         </div>
       </div>

@@ -125,6 +125,7 @@ export interface Course {
   suggestedSemester: string
   isCore: boolean
   status: CourseStudyStatus
+  countsGpa: boolean
 }
 
 // 学生课程记录
@@ -161,6 +162,7 @@ export interface CourseGradeRecord {
   semester: Semester
   suggestedSemester: string
   isCore: boolean
+  countsGpa: boolean
   regularScore?: number
   finalScore?: number
   totalScore?: number

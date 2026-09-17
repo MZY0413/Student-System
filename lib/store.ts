@@ -125,6 +125,11 @@ type CourseRow = {
   is_core: boolean | null
   status: Course['status'] | null
 }
+// 公选课（任选）不计入绩点：这些类别属于通识选修（公选），其余（必修 / 限选）计入
+const NON_GPA_CATEGORIES = new Set(['通识教育拓展课', '通识教育核心课', '通识教育特色课'])
+function countsTowardGpa(category: string | null | undefined): boolean {
+  return !(category != null && NON_GPA_CATEGORIES.has(category))
+}
 function mapCourse(row: CourseRow): Course {
   return {
     id: row.id,
@@ -141,6 +146,7 @@ function mapCourse(row: CourseRow): Course {
     suggestedSemester: row.suggested_semester ?? '按培养方案修读',
     isCore: row.is_core ?? false,
     status: row.status ?? 'notStarted',
+    countsGpa: countsTowardGpa(row.category),
   }
 }
 
@@ -368,7 +374,12 @@ function gpaPoint(record: CourseGradeRecord, scale: GPAScale): number {
 }
 
 function weightedGPA(records: CourseGradeRecord[], scale: GPAScale = 'four'): number {
-  const eligible = records.filter(record => record.status === 'completed' && record.totalScore !== undefined && record.examStatus !== '缓考')
+  const eligible = records.filter(record =>
+    record.status === 'completed' &&
+    record.totalScore !== undefined &&
+    record.examStatus !== '缓考' &&
+    record.countsGpa !== false
+  )
   const totalCredits = eligible.reduce((sum, record) => sum + record.credit, 0)
   if (totalCredits === 0) return 0
   const weighted = eligible.reduce((sum, record) => sum + gpaPoint(record, scale) * record.credit, 0)
@@ -412,6 +423,7 @@ export async function getCourseGradeRecords(studentId: string): Promise<CourseGr
       semester: course.semester,
       suggestedSemester: course.suggestedSemester,
       isCore: course.isCore,
+      countsGpa: course.countsGpa,
       regularScore: studentCourse.regularScore,
       finalScore: studentCourse.finalScore,
       totalScore,
@@ -499,7 +511,7 @@ export async function getStudentSemesterGPAs(studentId: string): Promise<Semeste
 
   return Array.from(groups.entries())
     .map(([key, list]) => {
-      const eligible = list.filter(record => record.totalScore !== undefined && record.examStatus !== '缓考')
+      const eligible = list.filter(record => record.totalScore !== undefined && record.examStatus !== '缓考' && record.countsGpa !== false)
       const totalCredits = eligible.reduce((sum, record) => sum + record.credit, 0)
       const gpa = totalCredits === 0
         ? 0
@@ -558,10 +570,42 @@ export async function getSemesterRanking(semesterKey: string): Promise<RankingLe
     .sort((a, b) => b.averageScore - a.averageScore || a.studentName.localeCompare(b.studentName))
 }
 
-export async function getRankingLeaderboard(studentId: string, semesterKey?: string): Promise<RankingLeaderboard> {
-  const key = semesterKey ?? getCurrentSemesterKey()
-  const entries = await getSemesterRanking(key)
+export async function getGPARanking(semesterKey: string): Promise<RankingLeaderboardEntry[]> {
+  const { academicYear, semester } = parseSemesterKey(semesterKey)
+  const [courses, studentCourses, users] = await Promise.all([getCourses(), getStudentCourses(), getUsers()])
 
+  const courseMap = new Map(courses.map(c => [c.id, c]))
+  const studentMap = new Map(users.filter(u => u.role === 'student').map(u => [u.id, u.name]))
+
+  // 统计每位学生该学期「计入绩点」课程的成绩（公选课 countsGpa=false 不计入）
+  const agg = new Map<string, { credit: number; weighted: number }>()
+  studentCourses.forEach(sc => {
+    if (!studentMap.has(sc.studentId)) return
+    const course = courseMap.get(sc.courseId)
+    if (!course) return
+    if (course.academicYear !== academicYear || course.semester !== semester) return
+    if (course.countsGpa === false) return
+    if (sc.status !== 'completed') return
+    if (sc.totalScore === undefined) return
+    if (sc.examStatus === '缓考') return
+    const entry = agg.get(sc.studentId) ?? { credit: 0, weighted: 0 }
+    entry.credit += course.credit
+    entry.weighted += scoreToGPA(sc.totalScore, 'four') * course.credit
+    agg.set(sc.studentId, entry)
+  })
+
+  const date = new Date().toISOString().split('T')[0]
+  return Array.from(agg.entries())
+    .map(([studentId, { credit, weighted }]) => ({
+      studentId,
+      studentName: studentMap.get(studentId)!,
+      averageScore: credit > 0 ? round2(weighted / credit) : 0,
+      date,
+    }))
+    .sort((a, b) => b.averageScore - a.averageScore || a.studentName.localeCompare(b.studentName))
+}
+
+function buildLeaderboard(entries: RankingLeaderboardEntry[], studentId: string): RankingLeaderboard {
   const myIndex = entries.findIndex(entry => entry.studentId === studentId)
   const myRank = myIndex >= 0 ? myIndex + 1 : 0
   const myScore = myIndex >= 0 ? entries[myIndex].averageScore : 0
@@ -577,6 +621,18 @@ export async function getRankingLeaderboard(studentId: string, semesterKey?: str
     : myRank === 1 && total > 0 ? 100 : 0
 
   return { entries, myRank, myScore, total, highestScore, lowestScore, averageScore, percentAbove }
+}
+
+export async function getRankingLeaderboard(studentId: string, semesterKey?: string): Promise<RankingLeaderboard> {
+  const key = semesterKey ?? getCurrentSemesterKey()
+  const entries = await getSemesterRanking(key)
+  return buildLeaderboard(entries, studentId)
+}
+
+export async function getGPALeaderboard(studentId: string, semesterKey?: string): Promise<RankingLeaderboard> {
+  const key = semesterKey ?? getCurrentSemesterKey()
+  const entries = await getGPARanking(key)
+  return buildLeaderboard(entries, studentId)
 }
 
 export async function getClassStats(): Promise<ClassStats> {

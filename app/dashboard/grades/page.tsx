@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -23,6 +24,7 @@ import {
   getCourseGradeRecords,
   getAllSemesters,
   getCurrentSemesterKey,
+  getGPALeaderboard,
   getRankingLeaderboard,
   getStudentSemesterGPAs,
 } from '@/lib/store'
@@ -50,6 +52,8 @@ export default function GradesPage() {
   const [semesters, setSemesters] = useState<{ key: string; academicYear: string; semester: string }[]>([])
   const [selectedSemester, setSelectedSemester] = useState('')
   const [leaderboard, setLeaderboard] = useState<RankingLeaderboard | null>(null)
+  const [gpaLeaderboard, setGpaLeaderboard] = useState<RankingLeaderboard | null>(null)
+  const [rankingType, setRankingType] = useState<'average' | 'gpa'>('average')
   const [rankingVisible, setRankingVisible] = useState(false)
   const rankingRef = useRef<HTMLDivElement>(null)
 
@@ -78,8 +82,14 @@ export default function GradesPage() {
     if (user?.role !== 'student' || !selectedSemester) return
     let cancelled = false
     ;(async () => {
-      const leaderboard = await getRankingLeaderboard(user.id, selectedSemester)
-      if (!cancelled) setLeaderboard(leaderboard)
+      const [leaderboard, gpaLeaderboard] = await Promise.all([
+        getRankingLeaderboard(user.id, selectedSemester),
+        getGPALeaderboard(user.id, selectedSemester),
+      ])
+      if (!cancelled) {
+        setLeaderboard(leaderboard)
+        setGpaLeaderboard(gpaLeaderboard)
+      }
     })()
     return () => { cancelled = true }
   }, [selectedSemester, user])
@@ -222,13 +232,55 @@ export default function GradesPage() {
               </SelectContent>
             </Select>
           </div>
-          <MyRankCard
-            myRank={leaderboard.myRank}
-            myScore={leaderboard.myScore}
-            total={leaderboard.total}
-            percentAbove={leaderboard.percentAbove}
-          />
-          <RankingBoard entries={leaderboard.entries} studentId={user.id} anonymous />
+          {/* 排名类型切换：平均成绩 / 绩点 */}
+          <div className="flex gap-1 rounded-lg bg-secondary p-1">
+            <button
+              type="button"
+              onClick={() => setRankingType('average')}
+              className={cn(
+                'rounded-md px-3 py-1 text-sm transition-colors',
+                rankingType === 'average' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              平均成绩排名
+            </button>
+            <button
+              type="button"
+              onClick={() => setRankingType('gpa')}
+              className={cn(
+                'rounded-md px-3 py-1 text-sm transition-colors',
+                rankingType === 'gpa' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              绩点排名
+            </button>
+          </div>
+
+          {rankingType === 'average' ? (
+            <>
+              <MyRankCard
+                myRank={leaderboard.myRank}
+                myScore={leaderboard.myScore}
+                total={leaderboard.total}
+                percentAbove={leaderboard.percentAbove}
+              />
+              <RankingBoard entries={leaderboard.entries} studentId={user.id} anonymous />
+            </>
+          ) : gpaLeaderboard ? (
+            <>
+              <MyRankCard
+                myRank={gpaLeaderboard.myRank}
+                myScore={gpaLeaderboard.myScore}
+                total={gpaLeaderboard.total}
+                percentAbove={gpaLeaderboard.percentAbove}
+                title="我的绩点排名"
+                scoreLabel="学期平均绩点"
+              />
+              <RankingBoard entries={gpaLeaderboard.entries} studentId={user.id} anonymous scoreLabel="绩点" />
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">暂无绩点排名数据</p>
+          )}
         </div>
       )}
 

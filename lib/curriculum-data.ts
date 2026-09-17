@@ -198,6 +198,7 @@ export const initialCourses: Course[] = flattened.map((course, index) => {
     suggestedSemester: course.semester?.toString() ?? course.note ?? '按培养方案选修',
     isCore: course.attribute === '必修' || ['机器学习', '深度学习', '计算机视觉', '自然语言处理', '毕业设计(论文)'].includes(course.name),
     status: 'notStarted',
+    countsGpa: true,
   }
 })
 
