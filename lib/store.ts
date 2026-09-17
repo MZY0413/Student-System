@@ -127,7 +127,10 @@ type CourseRow = {
 }
 // 公选课（任选）不计入绩点：这些类别属于通识选修（公选），其余（必修 / 限选）计入
 const NON_GPA_CATEGORIES = new Set(['通识教育拓展课', '通识教育核心课', '通识教育特色课'])
-function countsTowardGpa(category: string | null | undefined): boolean {
+// 不在培养方案中的课程也不计入绩点（「机器人与人工智能」虽按必修开设，但培养方案里没有）
+const NON_PLAN_COURSE_IDS = new Set(['T9000011'])
+function countsTowardGpa(id: string, category: string | null | undefined): boolean {
+  if (NON_PLAN_COURSE_IDS.has(id)) return false
   return !(category != null && NON_GPA_CATEGORIES.has(category))
 }
 function mapCourse(row: CourseRow): Course {
@@ -146,7 +149,7 @@ function mapCourse(row: CourseRow): Course {
     suggestedSemester: row.suggested_semester ?? '按培养方案修读',
     isCore: row.is_core ?? false,
     status: row.status ?? 'notStarted',
-    countsGpa: countsTowardGpa(row.category),
+    countsGpa: countsTowardGpa(row.id, row.category),
   }
 }
 
