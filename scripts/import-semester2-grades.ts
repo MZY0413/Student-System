@@ -41,7 +41,7 @@ const g = {
   jianji: 'T9000013', // 剪辑的历史、理论与实践（公选）
   dianzi: 'T9000014', // 电子设计思维（公选）
   gaige: '1131021047', // 改革开放简史（公选）
-  jingong: '2111040031', // 基于金工实训技术的艺术创作训练（公选）
+  jingong: '2111040031', // 基于金工实训技术的艺术创作训练（院级实践选修）
   shuzi: 'T9000015', // 人工智能与数字素养（公选）
   zhuangzi: 'T9000016', // 庄子哲学（公选）
   dianying: 'T9000017', // 电影与精神分析导引（公选）
@@ -74,7 +74,7 @@ const COURSES: CourseDef[] = [
   { id: g.jianji, name: '剪辑的历史、理论与实践', credit: 2, category: '通识教育拓展课', nature: '任选' },
   { id: g.dianzi, name: '电子设计思维', credit: 2, category: '通识教育拓展课', nature: '任选' },
   { id: g.gaige, name: '改革开放简史', credit: 1, category: '通识教育特色课', nature: '任选' },
-  { id: g.jingong, name: '基于金工实训技术的艺术创作训练', credit: 2, category: '通识教育拓展课', nature: '任选' },
+  { id: g.jingong, name: '基于金工实训技术的艺术创作训练', credit: 2, category: '实践选修环节', nature: '限选' },
   { id: g.shuzi, name: '人工智能与数字素养', credit: 2, category: '通识教育拓展课', nature: '任选' },
   { id: g.zhuangzi, name: '庄子哲学', credit: 2, category: '通识教育拓展课', nature: '任选' },
   { id: g.dianying, name: '电影与精神分析导引', credit: 2, category: '通识教育拓展课', nature: '任选' },
