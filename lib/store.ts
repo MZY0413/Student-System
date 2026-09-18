@@ -22,6 +22,7 @@ import type {
   AcademicAdvice,
   AcademicAdviceType,
 } from './types'
+import { scoreToFourPointGPA } from './gpa-formula'
 
 const CURRENT_ACADEMIC_YEAR = '2025-2026学年'
 const CURRENT_SEMESTER = '第一学期'
@@ -125,13 +126,10 @@ type CourseRow = {
   is_core: boolean | null
   status: Course['status'] | null
 }
-// 公选课（任选）不计入绩点：这些类别属于通识选修（公选），其余（必修 / 限选）计入
-const NON_GPA_CATEGORIES = new Set(['通识教育拓展课', '通识教育核心课', '通识教育特色课'])
-// 不在培养方案中的课程也不计入绩点（「机器人与人工智能」虽按必修开设，但培养方案里没有）
-const NON_PLAN_COURSE_IDS = new Set(['T9000011'])
-function countsTowardGpa(id: string, category: string | null | undefined): boolean {
-  if (NON_PLAN_COURSE_IDS.has(id)) return false
-  return !(category != null && NON_GPA_CATEGORIES.has(category))
+// 必修课计入绩点、选修课不计入：以 courses.is_core 为准
+// （导入脚本按「必修 = 培养方案 63 门课程」写入 is_core，其余一律为选修）
+function countsTowardGpa(row: CourseRow): boolean {
+  return row.is_core === true
 }
 function mapCourse(row: CourseRow): Course {
   return {
@@ -149,7 +147,7 @@ function mapCourse(row: CourseRow): Course {
     suggestedSemester: row.suggested_semester ?? '按培养方案修读',
     isCore: row.is_core ?? false,
     status: row.status ?? 'notStarted',
-    countsGpa: countsTowardGpa(row.id, row.category),
+    countsGpa: countsTowardGpa(row),
   }
 }
 
@@ -356,10 +354,7 @@ export function scoreToGPA(score: number | undefined, scale: GPAScale = 'four'):
     return 0
   }
   // 中国传媒大学（北京大学算法）：单门 GPA = 4 − 3(100−X)²/1600（60≤X≤100），60 分以下为 0
-  if (score >= 100) return 4
-  if (score < 60) return 0
-  const gpa = 4 - (3 * Math.pow(100 - score, 2)) / 1600
-  return Math.round(gpa * 100) / 100
+  return scoreToFourPointGPA(score)
 }
 
 export function getCurrentSemesterKey(): string {
@@ -465,18 +460,16 @@ export async function calculateGPA(studentId: string, scale: GPAScale = 'four'):
     totalCredits: yearlyData[year].records.filter(isPassedGrade).reduce((sum, record) => sum + record.credit, 0),
   }))
 
-  // 总绩点统一固定为 4.0（实验班），不再按学分加权计算
-  const totalGPA = 4
-  const currentTermGPA = 4
-  const academicYearGPA = 4
+  // 总绩点 = 所有已修学期「必修课」的加权平均（∑单科GPA×学分 / ∑学分），不分学期
+  const totalGPA = weightedGPA(records, scale)
   const passedCredits = records.filter(isPassedGrade).reduce((sum, record) => sum + record.credit, 0)
 
   return {
     yearlyGPAs,
     totalGPA,
     comprehensiveGPA: totalGPA,
-    currentTermGPA,
-    academicYearGPA,
+    currentTermGPA: totalGPA,
+    academicYearGPA: totalGPA,
     cumulativeGPA: totalGPA,
     totalCredits: passedCredits,
   }
@@ -573,27 +566,26 @@ export async function getSemesterRanking(semesterKey: string): Promise<RankingLe
     .sort((a, b) => b.averageScore - a.averageScore || a.studentName.localeCompare(b.studentName))
 }
 
-export async function getGPARanking(semesterKey: string): Promise<RankingLeaderboardEntry[]> {
-  const { academicYear, semester } = parseSemesterKey(semesterKey)
+export async function getGPARanking(): Promise<RankingLeaderboardEntry[]> {
   const [courses, studentCourses, users] = await Promise.all([getCourses(), getStudentCourses(), getUsers()])
 
   const courseMap = new Map(courses.map(c => [c.id, c]))
   const studentMap = new Map(users.filter(u => u.role === 'student').map(u => [u.id, u.name]))
 
-  // 统计每位学生该学期「计入绩点」课程的成绩（公选课 countsGpa=false 不计入）
+  // 统计每位学生「全部已修学期」必修课的加权绩点（选修课 countsGpa=false 不计入），不分学期
   const agg = new Map<string, { credit: number; weighted: number }>()
   studentCourses.forEach(sc => {
     if (!studentMap.has(sc.studentId)) return
     const course = courseMap.get(sc.courseId)
     if (!course) return
-    if (course.academicYear !== academicYear || course.semester !== semester) return
     if (course.countsGpa === false) return
     if (sc.status !== 'completed') return
     if (sc.totalScore === undefined) return
     if (sc.examStatus === '缓考') return
     const entry = agg.get(sc.studentId) ?? { credit: 0, weighted: 0 }
+    const gpa = sc.gpa !== undefined ? sc.gpa : scoreToGPA(sc.totalScore, 'four')
     entry.credit += course.credit
-    entry.weighted += scoreToGPA(sc.totalScore, 'four') * course.credit
+    entry.weighted += gpa * course.credit
     agg.set(sc.studentId, entry)
   })
 
@@ -632,9 +624,8 @@ export async function getRankingLeaderboard(studentId: string, semesterKey?: str
   return buildLeaderboard(entries, studentId)
 }
 
-export async function getGPALeaderboard(studentId: string, semesterKey?: string): Promise<RankingLeaderboard> {
-  const key = semesterKey ?? getCurrentSemesterKey()
-  const entries = await getGPARanking(key)
+export async function getGPALeaderboard(studentId: string): Promise<RankingLeaderboard> {
+  const entries = await getGPARanking()
   return buildLeaderboard(entries, studentId)
 }
 

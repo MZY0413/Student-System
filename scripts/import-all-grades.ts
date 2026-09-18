@@ -7,6 +7,7 @@
 //   - 大学英语分 A1/B1/C1 三个等级，每名同学只修一门（勿与分数混淆）
 import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
+import { scoreToFourPointGPA } from '../lib/gpa-formula'
 
 dotenv.config({ path: '.env.local' })
 
@@ -114,9 +115,7 @@ function mapModule(category: string): { moduleId: number; module: string } {
   return { moduleId: 1, module: '通识教育模块' }
 }
 
-// 公选课（通识教育拓展课/核心课/特色课）只记录分数，不记录学分、不参与绩点
-const GONGXUAN_CATEGORIES = new Set(['通识教育拓展课', '通识教育核心课', '通识教育特色课'])
-
+// 选修课（required=false）只记录分数，不记录学分、不参与绩点（绩点填 null 即「无」）
 type Score = number | '优' | '良' | '及格'
 
 const STUDENTS: { u: string; n: string; s: [string, Score][] }[] = [
@@ -320,7 +319,7 @@ async function main() {
     return {
       id: c.id,
       name: c.name,
-      credit: GONGXUAN_CATEGORIES.has(c.category) ? 0 : c.credit,
+      credit: c.required ? c.credit : 0,
       module_id: moduleId,
       module,
       year: 1,
@@ -341,7 +340,8 @@ async function main() {
   }
   console.log(`✔ courses: ${courseRows.length} 门`)
 
-  // 4. 写入学生成绩（军事技能为五级制，无分数，记「通过」）
+  // 4. 写入学生成绩（军事技能为五级制，无分数，记「通过」；必修课按中传公式写入单科绩点，选修课绩点填 null）
+  const requiredById = new Map(COURSES.map(c => [c.id, c.required]))
   const scRows: Record<string, unknown>[] = []
   let militaryCount = 0
   for (const student of STUDENTS) {
@@ -368,7 +368,7 @@ async function main() {
           regular_score: null,
           final_score: null,
           total_score: score,
-          gpa: null,
+          gpa: requiredById.get(courseId) ? scoreToFourPointGPA(score as number) : null,
           exam_status: '通过',
           remediation_status: '无需',
         })

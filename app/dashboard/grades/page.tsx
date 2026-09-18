@@ -82,17 +82,22 @@ export default function GradesPage() {
     if (user?.role !== 'student' || !selectedSemester) return
     let cancelled = false
     ;(async () => {
-      const [leaderboard, gpaLeaderboard] = await Promise.all([
-        getRankingLeaderboard(user.id, selectedSemester),
-        getGPALeaderboard(user.id, selectedSemester),
-      ])
-      if (!cancelled) {
-        setLeaderboard(leaderboard)
-        setGpaLeaderboard(gpaLeaderboard)
-      }
+      const leaderboard = await getRankingLeaderboard(user.id, selectedSemester)
+      if (!cancelled) setLeaderboard(leaderboard)
     })()
     return () => { cancelled = true }
   }, [selectedSemester, user])
+
+  // 绩点排名 = 全部已修学期的总绩点，不分学期
+  useEffect(() => {
+    if (user?.role !== 'student') return
+    let cancelled = false
+    ;(async () => {
+      const gpaLeaderboard = await getGPALeaderboard(user.id)
+      if (!cancelled) setGpaLeaderboard(gpaLeaderboard)
+    })()
+    return () => { cancelled = true }
+  }, [user])
 
   // 已通过课程（计入课程数量 / 已修学期 / 已修学分）
   const passedRecords = useMemo(
@@ -221,16 +226,20 @@ export default function GradesPage() {
         <div ref={rankingRef} className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm font-semibold">统计学期</span>
-            <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-              <SelectTrigger className="w-full sm:w-64">
-                <SelectValue placeholder="选择学期" />
-              </SelectTrigger>
-              <SelectContent>
-                {semesters.map(s => (
-                  <SelectItem key={s.key} value={s.key}>{s.academicYear} · {s.semester}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {rankingType === 'average' ? (
+              <Select value={selectedSemester} onValueChange={setSelectedSemester}>
+                <SelectTrigger className="w-full sm:w-64">
+                  <SelectValue placeholder="选择学期" />
+                </SelectTrigger>
+                <SelectContent>
+                  {semesters.map(s => (
+                    <SelectItem key={s.key} value={s.key}>{s.academicYear} · {s.semester}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="text-sm text-muted-foreground">全部已修学期</span>
+            )}
           </div>
           {/* 排名类型切换：平均成绩 / 绩点 */}
           <div className="flex gap-1 rounded-lg bg-secondary p-1">
@@ -274,9 +283,9 @@ export default function GradesPage() {
                 total={gpaLeaderboard.total}
                 percentAbove={gpaLeaderboard.percentAbove}
                 title="我的绩点排名"
-                scoreLabel="学期平均绩点"
+                scoreLabel="总绩点"
               />
-              <RankingBoard entries={gpaLeaderboard.entries} studentId={user.id} anonymous scoreLabel="绩点" />
+              <RankingBoard entries={gpaLeaderboard.entries} studentId={user.id} anonymous scoreLabel="总绩点" />
             </>
           ) : (
             <p className="text-sm text-muted-foreground">暂无绩点排名数据</p>
