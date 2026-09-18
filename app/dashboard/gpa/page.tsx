@@ -22,6 +22,7 @@ import {
   getCourseGradeRecords,
   getAllSemesters,
   getCurrentSemesterKey,
+  getGPARanking,
   getSemesterRanking,
   getStudentSemesterGPAs,
   getUsers,
@@ -55,6 +56,7 @@ export default function TeacherGpaPage() {
   const [semesters, setSemesters] = useState<{ key: string; academicYear: string; semester: string }[]>([])
   const [rankSemester, setRankSemester] = useState('')
   const [ranking, setRanking] = useState<RankingLeaderboardEntry[]>([])
+  const [gpaRanking, setGpaRanking] = useState<RankingLeaderboardEntry[]>([])
 
   // 路由守卫
   useEffect(() => {
@@ -108,6 +110,17 @@ export default function TeacherGpaPage() {
     })()
     return () => { cancelled = true }
   }, [rankSemester, user])
+
+  // 班级总绩点排名（全部已修学期，不分学期）
+  useEffect(() => {
+    if (user?.role !== 'teacher') return
+    let cancelled = false
+    ;(async () => {
+      const gpaRanking = await getGPARanking()
+      if (!cancelled) setGpaRanking(gpaRanking)
+    })()
+    return () => { cancelled = true }
+  }, [user])
 
   // 已通过课程 / 有成绩课程 / 按学期分组
   const passedRecords = useMemo(
@@ -236,6 +249,21 @@ export default function TeacherGpaPage() {
             <p className="text-sm text-muted-foreground">该学期暂无成绩排名</p>
           ) : (
             <RankingBoard entries={ranking} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 班级总绩点排名（全部已修学期，不分学期） */}
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm font-semibold">班级绩点排名</span>
+            <span className="text-xs text-muted-foreground">全部已修学期 · 不分学期</span>
+          </div>
+          {gpaRanking.length === 0 ? (
+            <p className="text-sm text-muted-foreground">暂无绩点排名</p>
+          ) : (
+            <RankingBoard entries={gpaRanking} studentId={selectedStudentId} scoreLabel="总绩点" />
           )}
         </CardContent>
       </Card>
