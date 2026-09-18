@@ -90,6 +90,9 @@ function mapModule(category: string): { moduleId: number; module: string } {
   return { moduleId: 1, module: '通识教育模块' }
 }
 
+// 公选课（通识教育拓展课/核心课/特色课）只记录分数，不记录学分、不参与绩点
+const GONGXUAN_CATEGORIES = new Set(['通识教育拓展课', '通识教育核心课', '通识教育特色课'])
+
 const STUDENTS: { u: string; n: string; s: [string, number][] }[] = [
   { u: '202511173011', n: '杨嘉盛', s: [
     [g.wuli, 93], [g.gailv, 93], [g.gaoshu, 99], [g.yingB2, 92], [g.tiyu, 88],
@@ -247,7 +250,7 @@ async function main() {
     return {
       id: c.id,
       name: c.name,
-      credit: c.credit,
+      credit: GONGXUAN_CATEGORIES.has(c.category) ? 0 : c.credit,
       module_id: moduleId,
       module,
       year: 1,
